@@ -1,0 +1,8 @@
+version: "2"
+authtoken: ${NGROK_AUTHTOKEN}
+
+tunnels:
+  mcp-server:
+    proto: http
+    addr: 3002
+    subdomain: index-mcp-server
