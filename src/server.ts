@@ -4,6 +4,16 @@ import express from "express";
 import cors from "cors";
 import { z } from "zod";
 
+type StoredProfile = {
+  displayName?: string;
+  pronouns?: string;
+  preferences?: string;
+  notes?: string;
+  updatedAt: string;
+};
+
+const profileStore = new Map<string, StoredProfile>();
+
 // Create MCP server instance
 const server = new McpServer({
   name: "index-mcp-server",
@@ -14,6 +24,135 @@ const server = new McpServer({
     resources: {},
     prompts: {}
   }
+});
+
+server.registerTool("store-user-profile", {
+  title: "Store User Profile Snippet",
+  description: "Persist profile details only after the user explicitly consents. Call this tool with the fields the user approved.",
+  inputSchema: {
+    profileKey: z.string().min(1, "profileKey is required").describe("Stable identifier supplied by the user (e.g. email or handle)"),
+    consentGranted: z.boolean().describe("True only if the user explicitly agreed to store this info in the current conversation"),
+    displayName: z.string().min(1).optional().describe("Preferred display name"),
+    pronouns: z.string().min(1).optional().describe("Pronouns or honorifics to use"),
+    preferences: z.string().min(1).optional().describe("Persona, tone, or workflow preferences"),
+    notes: z.string().min(1).optional().describe("Free-form notes shared by the user for future reference")
+  }
+}, async (args) => {
+  if (!args.consentGranted) {
+    return {
+      content: [{
+        type: "text",
+        text: "Consent was not granted. Nothing was stored."
+      }],
+      _meta: {
+        "openai/widgetAccessible": true
+      }
+    };
+  }
+
+  const { profileKey, consentGranted: _consentGranted, ...rest } = args;
+  const fields = Object.entries(rest).filter(([_, value]) => typeof value === "string" && value.trim().length > 0);
+
+  if (fields.length === 0) {
+    return {
+      content: [{
+        type: "text",
+        text: "No profile fields were provided. Please include at least one value to store."
+      }],
+      _meta: {
+        "openai/widgetAccessible": true
+      }
+    };
+  }
+
+  const existing = profileStore.get(profileKey) ?? {};
+  const updated: StoredProfile = {
+    ...existing,
+    ...Object.fromEntries(fields),
+    updatedAt: new Date().toISOString()
+  };
+
+  profileStore.set(profileKey, updated);
+
+  return {
+    content: [{
+      type: "text",
+      text: `Stored profile for "${profileKey}". Fields saved: ${fields.map(([key]) => key).join(", ")}.`
+    }],
+    _meta: {
+      "openai/widgetAccessible": true
+    }
+  };
+});
+
+server.registerTool("get-user-profile", {
+  title: "Get Stored User Profile",
+  description: "Retrieve previously stored profile fields using the profileKey the user provided.",
+  inputSchema: {
+    profileKey: z.string().min(1).describe("Identifier used when storing the profile")
+  }
+}, async ({ profileKey }) => {
+  const stored = profileStore.get(profileKey);
+
+  if (!stored) {
+    return {
+      content: [{
+        type: "text",
+        text: `No profile data found for "${profileKey}".`
+      }],
+      _meta: {
+        "openai/widgetAccessible": true
+      }
+    };
+  }
+
+  const { updatedAt, ...visible } = stored;
+  const lines = Object.entries(visible).map(([key, value]) => `- ${key}: ${value}`);
+
+  return {
+    content: [{
+      type: "text",
+      text: `Profile for "${profileKey}" (last updated ${updatedAt}):\n${lines.join("\n")}`
+    }],
+    _meta: {
+      "openai/widgetAccessible": true
+    }
+  };
+});
+
+server.registerTool("delete-user-profile", {
+  title: "Delete Stored User Profile",
+  description: "Erase any stored profile data after the user requests deletion.",
+  inputSchema: {
+    profileKey: z.string().min(1).describe("Identifier used when storing the profile"),
+    confirm: z.boolean().describe("Must be true if the user explicitly requested deletion")
+  }
+}, async ({ profileKey, confirm }) => {
+  if (!confirm) {
+    return {
+      content: [{
+        type: "text",
+        text: "Deletion not confirmed. No data was removed."
+      }],
+      _meta: {
+        "openai/widgetAccessible": true
+      }
+    };
+  }
+
+  const removed = profileStore.delete(profileKey);
+
+  return {
+    content: [{
+      type: "text",
+      text: removed
+        ? `Deleted stored profile data for "${profileKey}".`
+        : `No stored profile data existed for "${profileKey}".`
+    }],
+    _meta: {
+      "openai/widgetAccessible": true
+    }
+  };
 });
 
 // Register health check tool
@@ -71,6 +210,29 @@ server.registerResource(
     contents: [{
       uri: "index://info",
       text: "Index MCP Server\n\nAvailable tools:\n- health-check: Check server status\n- echo: Echo back messages\n- search: Search for information\n\nServer is running and ready for ChatGPT integration."
+    }]
+  })
+);
+
+server.registerResource(
+  "index-privacy",
+  "index://privacy",
+  {
+    title: "Index MCP Privacy & Consent Policy",
+    description: "Details on how user-shared memories are stored and cleared.",
+    mimeType: "text/plain"
+  },
+  async () => ({
+    contents: [{
+      uri: "index://privacy",
+      text: [
+        "Index MCP Privacy Overview",
+        "",
+        "- We only store profile fields after the user explicitly consents in the current conversation.",
+        "- Stored data is keyed by the profileKey the user supplied and lives in volatile server memory.",
+        "- Use delete-user-profile with confirm=true to erase the stored fields immediately.",
+        "- Restarting the server clears all stored data; no information is written to disk."
+      ].join("\n")
     }]
   })
 );
