@@ -3,6 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import cors from "cors";
 import { z } from "zod";
+import { indexEchoEmbeddedResource, indexEchoWidget } from "./widgets/indexEcho";
 
 // Create minimal MCP server
 const server = new McpServer({
@@ -10,21 +11,41 @@ const server = new McpServer({
   version: "1.0.0"
 }, {
   capabilities: {
-    tools: {}
+    tools: {},
+    resources: {}
   }
 });
+
+server.registerResource(indexEchoWidget.resourceName, indexEchoWidget.templateUri, {}, async () => ({
+  contents: [
+    {
+      uri: indexEchoWidget.templateUri,
+      mimeType: indexEchoWidget.mimeType,
+      text: indexEchoWidget.html,
+      title: indexEchoWidget.title
+    }
+  ]
+}));
 
 // Single echo tool for testing
 server.registerTool("echo", {
   title: "Echo Tool",
   description: "Echo back the provided message",
   inputSchema: { message: z.string() }
-}, async ({ message }) => ({
-  content: [{ type: "text", text: `Echo: ${message}` }],
-  _meta: {
-    "openai/widgetAccessible": true
-  }
-}));
+}, async ({ message }) => {
+  return {
+    content: [{ type: "text", text: `Echo: ${message}` }],
+    structuredContent: { message },
+    _meta: {
+      "openai/widgetAccessible": true,
+      "openai/resultCanProduceWidget": true,
+      "openai/outputTemplate": indexEchoWidget.templateUri,
+      "openai/toolInvocation/invoking": indexEchoWidget.invoking,
+      "openai/toolInvocation/invoked": indexEchoWidget.invoked,
+      "openai.com/widget": indexEchoEmbeddedResource
+    }
+  };
+});
 
 // Express setup with CORS
 const app = express();
