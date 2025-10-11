@@ -1,0 +1,12 @@
+{
+  "watch": ["src/", "widgets/dist/"],
+  "ext": "ts,js,json,html,css",
+  "ignore": ["src/**/*.test.ts", "node_modules/**/*"],
+  "ignoreRoot": [".git"],
+  "exec": "ts-node src/server.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 2000,
+  "legacyWatch": true
+}

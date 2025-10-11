@@ -1,0 +1,23 @@
+{
+  "name": "@indexnetwork/widgets",
+  "version": "1.0.0",
+  "description": "React widgets for Index Network ChatGPT integration",
+  "scripts": {
+    "dev": "vite",
+    "dev:watch": "vite build --watch",
+    "build": "vite build",
+    "preview": "vite preview",
+    "touch-server": "touch ../src/server.ts"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^7.0.0"
+  }
+}

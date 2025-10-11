@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --echo-primary: #0A0A0A;
+  --echo-secondary: #6b7280;
+  --echo-accent: #eb06cc;
+  --echo-bg: #FFFFFF;
+  --echo-border: #0A0A0A;
+  --echo-shadow: rgba(15, 23, 42, 0.08);
+  --echo-shadow-h: rgba(15, 23, 42, 0.15);
+  --echo-trans: all 0.2s ease-in-out;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: transparent;
+  color: inherit;
+}
+
+.card {
+  border: 1px solid var(--echo-border);
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--echo-bg);
+  width: 100%;
+  max-width: 500px;
+  min-width: 280px;
+  box-shadow: 0 1px 3px var(--echo-shadow);
+  transition: var(--echo-trans);
+  contain: layout style;
+  will-change: transform;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--echo-shadow-h);
+}
+
+.card:focus-within {
+  outline: 2px solid var(--echo-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.3);
+  }
+  
+  .title {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+  
+  .message {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--echo-accent) 0%, #e018c5 100%);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  transition: var(--echo-trans);
+}
+
+.icon:hover {
+  transform: scale(1.05);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 8px 0;
+  color: var(--echo-secondary);
+  line-height: 1.3;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.message {
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+  color: var(--echo-primary);
+  font-family: 'IBM Plex Mono', monospace;
+  margin: 0;
+}
+
+.message:empty::after {
+  content: 'Waiting for message...';
+  color: #999;
+  font-style: italic;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.card[data-state="error"] {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.card[data-state="success"] {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.card[data-state="loading"] {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 12px;
+    gap: 10px;
+    min-width: 260px;
+  }
+  
+  .icon {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  
+  .title {
+    font-size: 10px;
+  }
+  
+  .message {
+    font-size: 13px;
+  }
+}
