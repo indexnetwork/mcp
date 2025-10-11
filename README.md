@@ -1,55 +1,118 @@
 # Index Network MCP Server
 
-Minimal Model Context Protocol (MCP) server for ChatGPT integration with Index Network.
+A Model Context Protocol (MCP) server for Index Network ChatGPT integration with React-based widgets.
 
-## Quick Start
+## Architecture
+
+This project follows the Apps SDK Examples Gallery pattern with a React + Vite build system for ChatGPT widgets:
+
+- **MCP Server** (`src/server.ts`) - Express server exposing tools via MCP protocol
+- **Widgets** (`widgets/`) - React components built with Vite for rich UI in ChatGPT
+- **Shared Hooks** (`widgets/src/hooks/`) - Reusable hooks for widget development
+
+## Development
 
 ### Prerequisites
+
 - Node.js 18+
-- ngrok account ([sign up free](https://ngrok.com))
+- npm or yarn
 
 ### Setup
+
+1. Install dependencies:
 ```bash
 npm install
-cp env.example .env
-# Edit .env with your NGROK_AUTHTOKEN
+cd widgets && npm install
 ```
 
-### Run
+2. Start development servers:
 ```bash
-./src/start-mcp.sh
+npm run dev
 ```
 
-This starts the MCP server, creates an ngrok tunnel, and launches the MCP Inspector.
+This runs both the MCP server and widget dev server concurrently.
 
-## ChatGPT Integration
+### Widget Development
 
-1. Run `./src/start-mcp.sh`
-2. Copy the ngrok URL (e.g., `https://abc123.ngrok-free.dev/mcp`)
-3. Add to ChatGPT as an MCP server
+Widgets are React components in the `widgets/src/` directory:
 
-## Available Tool
+- **Components** - React components with proper JSX and TypeScript
+- **Styles** - Separate CSS files with full IDE support
+- **Hooks** - Utilities following OpenAI pattern:
+  - `use-widget-props.ts` - Access tool output data
+  - `use-openai-global.ts` - Read ChatGPT environment (theme, locale, etc.)
+  - `use-widget-state.ts` - Manage persistent widget state
 
-### `echo`
-Echoes back the provided message.
+### Adding New Widgets
 
-**Parameters:**
-- `message` (string): Message to echo
+1. Create widget directory: `widgets/src/your-widget/`
+2. Add React component: `YourWidget.tsx`
+3. Add styles: `your-widget.css`
+4. Add entry point: `index.tsx` and `index.html`
+5. Update `vite.config.ts` to include new entry point
+6. Add widget definition inline in `server.ts` (following OpenAI pattern)
 
-**Example:**
-```json
-{
-  "message": "Hello, Index!"
-}
+### Building
+
+```bash
+# Build widgets and MCP server
+npm run build
+
+# Build widgets only
+npm run build:widgets
 ```
 
-## Configuration
+Built widgets are output to `widgets/dist/` with hashed filenames for cache busting.
 
-Set in `.env`:
-- `MCP_SERVER_PORT` - Server port (default: 3002)
-- `NGROK_AUTHTOKEN` - Your ngrok auth token
+## Production Deployment
 
-## Links
+1. Build the project: `npm run build`
+2. Start the server: `npm start`
+3. Expose via ngrok for ChatGPT testing:
+```bash
+ngrok http 3002
+```
 
+Add the ngrok URL to ChatGPT connectors: `https://your-ngrok-url.ngrok-free.app/mcp`
+
+## Widget Integration
+
+Widgets are served as embedded resources with the `text/html+skybridge` MIME type. The MCP server:
+
+1. Registers widget resources
+2. Serves static assets via `/widgets/` endpoint
+3. Returns widget HTML in tool responses with proper metadata
+
+## Tools
+
+- **echo** - Echo tool that renders the Index Echo widget
+  - Input: `{ message: string }`
+  - Output: Renders echo card with message
+
+## File Structure
+
+```
+mcp/
+├── src/
+│   └── server.ts              # MCP server with inline widget definitions
+├── widgets/                   # Widget build system
+│   ├── src/
+│   │   ├── use-widget-props.ts
+│   │   ├── use-openai-global.ts
+│   │   ├── use-widget-state.ts
+│   │   └── echo/              # Echo widget
+│   │       ├── Echo.tsx       # React component
+│   │       ├── echo.css       # Styles
+│   │       ├── index.tsx      # Entry point
+│   │       └── index.html     # HTML template
+│   ├── dist/                  # Built widget bundles
+│   ├── package.json
+│   └── vite.config.ts
+└── package.json
+```
+
+## References
+
+- [Apps SDK Examples Gallery](https://github.com/openai/apps-sdk-examples-gallery)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Index Network](https://index.network)
+- [OpenAI Apps SDK](https://platform.openai.com/docs/guides/apps)

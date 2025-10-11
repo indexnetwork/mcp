@@ -3,7 +3,44 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import cors from "cors";
 import { z } from "zod";
-import { indexEchoEmbeddedResource, indexEchoWidget } from "./widgets/indexEcho";
+import { join } from "path";
+import { readFileSync } from 'fs';
+
+// Widget definition - reads built HTML at server startup
+const baseUrl = process.env.MCP_SERVER_URL || 'http://localhost:3002';
+const widgetHtmlPath = join(__dirname, '../widgets/dist/src/echo/index.html');
+let widgetHtml = readFileSync(widgetHtmlPath, 'utf-8');
+
+// Fix asset paths to point to server
+widgetHtml = widgetHtml.replace(
+  /src="\/index-echo-([^"]+)\.js"/g, 
+  `src="${baseUrl}/widgets/index-echo-$1.js"`
+);
+widgetHtml = widgetHtml.replace(
+  /href="\/index-echo-([^"]+)\.css"/g, 
+  `href="${baseUrl}/widgets/index-echo-$1.css"`
+);
+
+const indexEchoWidget = {
+  id: "index-echo",
+  title: "Index Echo",
+  templateUri: "ui://widget/index-echo.html",
+  resourceName: "index-echo",
+  invoking: "Rendering echo card",
+  invoked: "Rendered echo card",
+  mimeType: "text/html+skybridge",
+  html: widgetHtml
+};
+
+const indexEchoEmbeddedResource = {
+  type: "resource" as const,
+  resource: {
+    uri: indexEchoWidget.templateUri,
+    mimeType: indexEchoWidget.mimeType,
+    text: indexEchoWidget.html,
+    title: indexEchoWidget.title
+  }
+};
 
 // Create minimal MCP server
 const server = new McpServer({
@@ -55,6 +92,9 @@ app.use(cors({
   exposedHeaders: ['Mcp-Session-Id'],
   allowedHeaders: ['Content-Type', 'mcp-session-id'],
 }));
+
+// Serve widget assets
+app.use('/widgets', express.static(join(__dirname, '../widgets/dist')));
 
 // POST /mcp - main endpoint (stateless)
 app.post('/mcp', async (req, res) => {
