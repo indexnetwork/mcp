@@ -13,12 +13,12 @@ let widgetHtml = readFileSync(widgetHtmlPath, 'utf-8');
 
 // Fix asset paths to point to server
 widgetHtml = widgetHtml.replace(
-  /src="\/index-echo-([^"]+)\.js"/g, 
-  `src="${baseUrl}/widgets/index-echo-$1.js"`
+  /src="\/echo-([^"]+)\.js"/g, 
+  `src="${baseUrl}/widgets/echo-$1.js"`
 );
 widgetHtml = widgetHtml.replace(
-  /href="\/index-echo-([^"]+)\.css"/g, 
-  `href="${baseUrl}/widgets/index-echo-$1.css"`
+  /href="\/echo-([^"]+)\.css"/g, 
+  `href="${baseUrl}/widgets/echo-$1.css"`
 );
 
 const indexEchoWidget = {

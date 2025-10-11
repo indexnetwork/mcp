@@ -9,8 +9,8 @@ export default defineConfig({
         'index-echo': './src/echo/index.html'
       },
       output: {
-        entryFileNames: 'index-echo-[hash:8].js',
-        assetFileNames: 'index-echo-[hash:8].[ext]'
+        entryFileNames: 'echo-[hash:8].js',
+        assetFileNames: 'echo-[hash:8].[ext]'
       }
     }
   }
