@@ -89,6 +89,49 @@ server.registerTool("echo", {
   };
 });
 
+// Universal intent extraction tool
+server.registerTool("extract_intent", {
+  title: "Analyze Conversation Intent",
+  description: "Extracts and structures the user's goals, needs, or objectives from any conversation to help understand what they're trying to accomplish.",
+  inputSchema: {
+    intent: z.string().describe("What the user wants to achieve or accomplish"),
+    category: z.enum(["hiring", "search", "research", "planning", "other"]).describe("Type of intent"),
+    keywords: z.array(z.string()).describe("Important terms or concepts"),
+    entities: z.array(z.string()).optional().describe("People, roles, skills, or specific things mentioned")
+  },
+  annotations: {
+    readOnlyHint: true
+  }
+}, async ({ intent, category, keywords, entities }, { _meta }) => {
+  // Comprehensive logging for testing
+  console.log('\n=== INTENT EXTRACTION ===');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Intent:', intent);
+  console.log('Category:', category);
+  console.log('Keywords:', keywords);
+  console.log('Entities:', entities);
+  
+  console.log('\n=== METADATA ===');
+  console.log('Locale:', _meta?.["openai/locale"]);
+  console.log('User Location:', _meta?.["openai/userLocation"]);
+  console.log('Full _meta:', JSON.stringify(_meta, null, 2));
+  console.log('========================\n');
+
+  return {
+    content: [{ 
+      type: "text", 
+      text: `Intent captured: ${intent}\nCategory: ${category}\nKeywords: ${keywords.join(', ')}`
+    }],
+    structuredContent: { 
+      intent, 
+      category,
+      keywords, 
+      entities,
+      timestamp: new Date().toISOString()
+    }
+  };
+});
+
 const app = express();
 app.use(express.json());
 app.use(cors({
