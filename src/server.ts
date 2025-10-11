@@ -21,6 +21,9 @@ widgetHtml = widgetHtml.replace(
   `href="${baseUrl}/widgets/echo-$1.css"`
 );
 
+/**
+ * Echo widget configuration for ChatGPT integration
+ */
 const indexEchoWidget = {
   id: "index-echo",
   title: "Index Echo",
@@ -32,6 +35,9 @@ const indexEchoWidget = {
   html: widgetHtml
 };
 
+/**
+ * Embedded resource for OpenAI widget integration
+ */
 const indexEchoEmbeddedResource = {
   type: "resource" as const,
   resource: {
@@ -42,7 +48,6 @@ const indexEchoEmbeddedResource = {
   }
 };
 
-// Create minimal MCP server
 const server = new McpServer({
   name: "index-mcp-server",
   version: "1.0.0"
@@ -84,7 +89,6 @@ server.registerTool("echo", {
   };
 });
 
-// Express setup with CORS
 const app = express();
 app.use(express.json());
 app.use(cors({
@@ -93,10 +97,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'mcp-session-id'],
 }));
 
-// Serve widget assets
 app.use('/widgets', express.static(join(__dirname, '../widgets/dist')));
 
-// POST /mcp - main endpoint (stateless)
+/**
+ * Main MCP endpoint for stateless communication
+ * Handles tool invocations and returns widget responses
+ */
 app.post('/mcp', async (req, res) => {
   try {
     const transport = new StreamableHTTPServerTransport({
@@ -133,10 +139,17 @@ app.delete('/mcp', (req, res) => {
   });
 });
 
-// Start server
 const PORT = process.env.MCP_SERVER_PORT || 3002;
 app.listen(PORT, () => {
   console.log(`MCP Server running on port ${PORT}`);
 });
 
-export { server, app };
+/**
+ * MCP server instance for tool registration and communication
+ */
+export { server };
+
+/**
+ * Express application for serving MCP endpoints and widget assets
+ */
+export { app };
