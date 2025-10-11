@@ -1,21 +1,27 @@
 # Index Network MCP Server
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.12.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Project Status](https://img.shields.io/badge/status-development-yellow)](https://github.com/index-network/mcp)
+[![MCP Version](https://img.shields.io/badge/MCP-1.19.1-blue)](https://github.com/modelcontextprotocol/typescript-sdk)
 
 > A Model Context Protocol (MCP) server that enables ChatGPT integration with Index Network's discovery protocol.
 
 This repository demonstrates Index Network's MCP server implementation, showcasing how to integrate with ChatGPT using React widgets and following best practices for MCP development.
+
+**⚠️ Development Status**: This project is currently in active development and not yet production-ready. It serves as a reference implementation and development environment for MCP server development.
 
 ## Table of Contents
 
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
+- [Security](#security)
 - [How It Works](#how-it-works)
 - [Adding New Widgets](#adding-new-widgets)
 - [Widget Hooks](#widget-hooks)
+- [Performance](#performance)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [Support](#support)
@@ -28,15 +34,19 @@ This repository demonstrates Index Network's MCP server implementation, showcasi
 - ⚡ **Modern Tooling** - Vite + React for fast builds and optimal performance
 - 🎨 **Custom Hooks** - `useWidgetProps`, `useOpenAiGlobal`, `useWidgetState` for seamless ChatGPT integration
 - 🛠️ **MCP Inspector** - Test and debug widgets without ChatGPT integration
-- 📦 **TypeScript** - Fully typed codebase for better development experience
-- 🚀 **Production Ready** - Optimized builds with hashed assets and proper MCP protocol implementation
+- 📦 **TypeScript 5.7.2** - Fully typed codebase for better development experience
+- 🚀 **Development Ready** - Optimized builds with hashed assets and proper MCP protocol implementation
+- 📝 **Clean Code** - Follows TypeScript commenting best practices with JSDoc documentation
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+
-- Port 3002 available
+- **Node.js**: 22.12.0 or higher
+- **Operating System**: macOS, Linux, or Windows (with WSL2 recommended)
+- **Memory**: Minimum 2GB RAM (4GB recommended for development)
+- **Port**: 3002 available (configurable via `MCP_SERVER_PORT`)
+- **Network**: Internet access for npm packages and ngrok tunneling
 
 ### Installation
 
@@ -88,6 +98,87 @@ npm test  # Launches MCP Inspector
 Use the echo tool to display "Hello, World!"
 ```
 
+### Advanced Usage Examples
+
+#### Custom Widget Development
+
+```typescript
+// widgets/src/my-widget/MyWidget.tsx
+import { useWidgetProps } from '../use-widget-props';
+import { useOpenAiGlobal } from '../use-openai-global';
+
+interface MyWidgetProps {
+  title: string;
+  data: any[];
+}
+
+export function MyWidget() {
+  const props = useWidgetProps<MyWidgetProps>({ 
+    title: '', 
+    data: [] 
+  });
+  const theme = useOpenAiGlobal('theme');
+  
+  return (
+    <div className={`widget ${theme}`}>
+      <h3>{props.title}</h3>
+      <ul>
+        {props.data.map((item, index) => (
+          <li key={index}>{item.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+#### Environment Configuration
+
+```bash
+# Development
+NODE_ENV=development npm run dev
+
+# Production with custom port
+MCP_SERVER_PORT=8080 NODE_ENV=production npm start
+
+# With ngrok authtoken
+NGROK_AUTHTOKEN=your_token npm run dev
+```
+
+## Security
+
+### Vulnerability Checking
+
+Regularly audit your dependencies for known vulnerabilities:
+
+```bash
+# Check for vulnerabilities
+npm audit
+
+# Fix automatically (use with caution)
+npm audit fix
+
+# Check for outdated packages
+npm outdated
+```
+
+### Security Best Practices
+
+- **Environment Variables**: Never commit sensitive data to version control
+- **CORS Configuration**: The server uses permissive CORS (`origin: '*'`) for development - restrict in production
+- **ngrok Tunnels**: Use authenticated ngrok sessions for production deployments
+- **Dependencies**: Keep all dependencies up to date and audit regularly
+- **HTTPS**: Always use HTTPS in production environments
+
+### Development Security Checklist
+
+- [ ] Set `NODE_ENV=development`
+- [ ] Use ngrok for secure tunneling
+- [ ] Run `npm audit` and fix vulnerabilities
+- [ ] Keep dependencies up to date
+- [ ] Use environment variables for sensitive data
+- [ ] Review CORS configuration for production readiness
+
 ## How It Works
 
 ### Architecture
@@ -129,8 +220,8 @@ Add entry in `widgets/vite.config.ts`:
 
 ```typescript
 input: {
-  echo: resolve(__dirname, 'src/echo/index.html'),
-  myWidget: resolve(__dirname, 'src/my-widget/index.html')
+  echo: './src/echo/index.html',
+  myWidget: './src/my-widget/index.html'
 }
 ```
 
@@ -180,6 +271,32 @@ function MyWidget() {
   return <div>{props.message}</div>;
 }
 ```
+
+## Performance
+
+### Optimization Tips
+
+- **Hot Reload**: Development changes are reflected in ~2 seconds
+- **Build Optimization**: Vite provides fast builds with hashed assets for cache busting
+- **Memory Usage**: Monitor memory consumption during development with `node --trace-sync-io`
+- **Bundle Size**: Widgets are built as separate chunks for optimal loading
+
+### Monitoring
+
+```bash
+# Monitor synchronous I/O operations
+node --trace-sync-io dist/server.js
+
+# Check memory usage
+node --inspect dist/server.js
+```
+
+### Development Performance
+
+- **Static Assets**: Widget assets are served with proper cache headers
+- **Hot Reload**: Fast development iteration with Vite
+- **Build Optimization**: Hashed assets for cache busting
+- **Logging**: Console logging for development debugging
 
 ## Troubleshooting
 
@@ -235,12 +352,27 @@ We welcome contributions to improve Index Network's MCP server! Here's how to ge
 - Update documentation as needed
 - Ensure all linting passes: `npm run lint`
 
+### Comment Best Practices
+
+This project follows clean code commenting principles:
+
+- **JSDoc for Public APIs**: All exported functions, classes, and types use JSDoc with `@param`, `@returns`, and `@example` tags
+- **Self-Explanatory Code**: Prefer clear variable names and small functions over explanatory comments
+- **Minimal Inline Comments**: Only use `//` comments for non-obvious business logic or architectural decisions
+- **No Redundant Comments**: Avoid stating the obvious or repeating what the code already shows
+- **Maintainable Documentation**: Keep comments in sync with code changes
+
+Examples of good commenting practices can be found in:
+- `widgets/src/use-widget-props.ts` - Comprehensive JSDoc with examples
+- `widgets/src/use-widget-state.ts` - Real-world usage examples
+- `src/server.ts` - JSDoc for exported items and route handlers
+
 ### Reporting Issues
 
 Found a bug or have a feature request? Please:
 1. Check existing issues first
 2. Create a new issue with clear steps to reproduce
-3. Include environment details (Node.js version, OS, etc.)
+3. Include environment details (Node.js 22.12.0+, OS, etc.)
 
 ## Support
 
