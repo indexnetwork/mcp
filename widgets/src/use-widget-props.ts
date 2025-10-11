@@ -19,6 +19,11 @@
  * ```
  */
 export function useWidgetProps<T>(defaults: T): T {
-  return (window as any).openai?.toolOutput || defaults;
+  const openai = (window as any).openai;
+  
+  return openai?.toolOutput?.structuredContent || 
+         openai?.toolOutput?.result?.structuredContent || 
+         openai?.toolOutput?.result || 
+         defaults;
 }
 
