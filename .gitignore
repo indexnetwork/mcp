@@ -22,3 +22,5 @@ logs/
 .vscode/
 .idea/
 *.swp
+
+.cursor/
