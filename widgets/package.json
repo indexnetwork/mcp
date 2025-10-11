@@ -4,8 +4,10 @@
   "description": "React widgets for Index Network ChatGPT integration",
   "scripts": {
     "dev": "vite",
+    "dev:watch": "vite build --watch",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "touch-server": "touch ../src/server.ts"
   },
   "dependencies": {
     "react": "^18.2.0",

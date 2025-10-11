@@ -5,7 +5,10 @@
   "main": "dist/server.js",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"cd widgets && npm run dev\" \"nodemon --exec ts-node src/server.ts\"",
+    "dev": "concurrently \"cd widgets && npm run dev:watch\" \"nodemon --exec ts-node src/server.ts\"",
+    "dev:force-restart": "concurrently \"cd widgets && npm run dev:watch\" \"nodemon --exec 'npm run touch-server && ts-node src/server.ts'\"",
+    "dev:widgets": "cd widgets && npm run dev",
+    "dev:server": "nodemon --exec ts-node src/server.ts",
     "build:widgets": "cd widgets && npm run build",
     "build": "npm run build:widgets && tsc",
     "start": "node dist/server.js",
