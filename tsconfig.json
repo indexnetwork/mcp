@@ -24,8 +24,7 @@
     "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*",
-    "widgets/src/definitions/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        'index-echo': './src/echo/index.html'
+        'echo': './src/echo/index.html'
       },
       output: {
         entryFileNames: 'echo-[hash:8].js',

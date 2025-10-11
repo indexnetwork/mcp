@@ -5,14 +5,17 @@
   "main": "dist/server.js",
   "license": "MIT",
   "scripts": {
+    "clean": "rm -rf dist && rm -rf widgets/dist",
     "dev": "concurrently \"cd widgets && npm run dev:watch\" \"nodemon --exec ts-node src/server.ts\"",
     "dev:force-restart": "concurrently \"cd widgets && npm run dev:watch\" \"nodemon --exec 'npm run touch-server && ts-node src/server.ts'\"",
     "dev:widgets": "cd widgets && npm run dev",
     "dev:server": "nodemon --exec ts-node src/server.ts",
     "build:widgets": "cd widgets && npm run build",
-    "build": "npm run build:widgets && tsc",
+    "build": "npm run clean && npm run build:widgets && tsc",
     "start": "node dist/server.js",
-    "test": "npx @modelcontextprotocol/inspector@latest"
+    "test": "npx @modelcontextprotocol/inspector@latest",
+    "lint": "eslint . --ext .ts,.js,.mjs",
+    "lint:fix": "eslint . --ext .ts,.js,.mjs --fix"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.19.1",
@@ -22,13 +25,15 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.5",
     "concurrently": "^8.2.2",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.0.0"
   },
   "keywords": [
     "mcp",
