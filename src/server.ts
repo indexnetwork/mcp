@@ -10,11 +10,7 @@ import { readFileSync } from 'fs';
 const baseUrl = process.env.MCP_SERVER_URL || 'http://localhost:3002';
 const widgetHtmlPath = join(__dirname, '../widgets/dist/src/echo/index.html');
 let widgetHtml = readFileSync(widgetHtmlPath, 'utf-8');
-//TODO: Get conversation history. DONE
-//TODO: Get user's intent. DONE
-//TODO!: Get item from MEMORY.
-//TODO! Get multiple intents from conversation history.
-//TODO! Get intent from a file.
+//TODO!: Get item from MEMORY. Implemented needs to be tested.
 
 // Fix asset paths to point to server
 widgetHtml = widgetHtml.replace(
@@ -101,6 +97,8 @@ server.registerTool("extract_intent", {
   inputSchema: {
     fullInputText: z.string().describe("Full input text"),
     rawText: z.string().optional().describe("Raw text content from uploaded file"),
+    conversationHistory: z.string().optional().describe("Raw conversation history as text"),
+    userMemory: z.string().optional().describe("Raw user memory/context as text"),
   },
   annotations: {
     readOnlyHint: true
@@ -113,6 +111,20 @@ server.registerTool("extract_intent", {
     console.log('\n--- FILE CONTENT ---');
     console.log('Raw text length:', input.rawText.length, 'characters');
     console.log('Raw text preview:', input.rawText.substring(0, 50000));
+  }
+
+  // Log conversation history if present
+  if (input.conversationHistory) {
+    console.log('\n--- CONVERSATION HISTORY ---');
+    console.log('History length:', input.conversationHistory.length, 'characters');
+    console.log('History preview:', input.conversationHistory.substring(0, 50000));
+  }
+
+  // Log user memory if present
+  if (input.userMemory) {
+    console.log('\n--- USER MEMORY ---');
+    console.log('Memory length:', input.userMemory.length, 'characters');
+    console.log('Memory preview:', input.userMemory.substring(0, 50000));
   }
 
   return {
