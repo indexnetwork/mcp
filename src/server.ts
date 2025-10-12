@@ -10,14 +10,19 @@ import { readFileSync } from 'fs';
 const baseUrl = process.env.MCP_SERVER_URL || 'http://localhost:3002';
 const widgetHtmlPath = join(__dirname, '../widgets/dist/src/echo/index.html');
 let widgetHtml = readFileSync(widgetHtmlPath, 'utf-8');
+//TODO: Get conversation history. DONE
+//TODO: Get user's intent. DONE
+//TODO!: Get item from MEMORY.
+//TODO! Get multiple intents from conversation history.
+//TODO! Get intent from a file.
 
 // Fix asset paths to point to server
 widgetHtml = widgetHtml.replace(
-  /src="\/echo-([^"]+)\.js"/g, 
+  /src="\/echo-([^"]+)\.js"/g,
   `src="${baseUrl}/widgets/echo-$1.js"`
 );
 widgetHtml = widgetHtml.replace(
-  /href="\/echo-([^"]+)\.css"/g, 
+  /href="\/echo-([^"]+)\.css"/g,
   `href="${baseUrl}/widgets/echo-$1.css"`
 );
 
@@ -94,18 +99,25 @@ server.registerTool("extract_intent", {
   title: "Analyze Conversation Intent",
   description: "Extracts and structures the user's goals, needs, or objectives from any conversation to help understand what they're trying to accomplish.",
   inputSchema: {
-    // primaryIntent: z.string().describe("Full input text"),
-    // additionalIntents: z.array(z.string()).optional().describe("Any secondary or additional goals mentioned")
     fullInputText: z.string().describe("Full input text"),
+    rawText: z.string().optional().describe("Raw text content from uploaded file"),
   },
   annotations: {
     readOnlyHint: true
   }
 }, async (input, { _meta }) => {
   console.log(input);
+
+  // Log raw text from file if present
+  if (input.rawText) {
+    console.log('\n--- FILE CONTENT ---');
+    console.log('Raw text length:', input.rawText.length, 'characters');
+    console.log('Raw text preview:', input.rawText.substring(0, 50000));
+  }
+
   return {
-    content: [{ 
-      type: "text", 
+    content: [{
+      type: "text",
       text: "ok",
     }],
   };
