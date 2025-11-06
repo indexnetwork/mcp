@@ -37,6 +37,7 @@ This repository demonstrates Index Network's MCP server implementation, showcasi
 - 📦 **TypeScript 5.7.2** - Fully typed codebase for better development experience
 - 🚀 **Development Ready** - Optimized builds with hashed assets and proper MCP protocol implementation
 - 📝 **Clean Code** - Follows TypeScript commenting best practices with JSDoc documentation
+- 🔐 **Bundled Consent UI** - OAuth consent screen built with React/Vite (no external CDN dependencies)
 
 ## Quick Start
 
@@ -65,7 +66,7 @@ cp env.example .env
 npm run dev
 ```
 
-This starts Vite in watch mode and the MCP server with auto-restart. Edit `widgets/src/echo/echo.css` → save → see changes in ~2 seconds.
+This starts Vite in watch mode (covering both the widgets and the OAuth consent page) and the MCP server with auto-restart. Edit `widgets/src/echo/echo.css` or `widgets/src/oauth-consent/App.tsx` → save → see changes in ~2 seconds.
 
 ### Testing
 
@@ -170,6 +171,21 @@ npm outdated
 - **Dependencies**: Keep all dependencies up to date and audit regularly
 - **HTTPS**: Always use HTTPS in production environments
 
+### Privy Authentication
+
+- Set `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, and (optionally) `PRIVY_JWT_VERIFICATION_KEY` in your `.env`
+- The server verifies `Authorization: Bearer <token>` headers using Privy before any MCP tool runs
+- ChatGPT connectors (or other clients) must obtain a Privy access token and include it with each request
+- Requests without a valid Privy token receive `401 Unauthorized`
+
+### OAuth Facade
+
+- OAuth 2.1 metadata is exposed at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`
+- Configure allowed clients and redirect URIs with `OAUTH_ALLOWED_CLIENT_IDS` and `OAUTH_ALLOWED_REDIRECT_URIS`
+- The authorization UI uses Privy email OTP login and exchanges the Privy token for first-party access/refresh tokens
+- Tokens are short-lived (`OAUTH_ACCESS_TOKEN_TTL_SECONDS`), refreshable if `offline_access` is granted, and mandatory for `/mcp` and `/oauth/userinfo`
+- Use `DANGEROUSLY_OMIT_AUTH=true` only for local debugging when you need to bypass the middleware
+
 ### Development Security Checklist
 
 - [ ] Set `NODE_ENV=development`
@@ -184,15 +200,17 @@ npm outdated
 ### Architecture
 
 ```
-src/server.ts          # MCP server with tool registration
-widgets/src/           # React widgets with hooks
-widgets/dist/          # Built assets (hashed filenames)
+src/server.ts               # MCP server with tool registration
+widgets/src/echo/           # React widget UI
+widgets/src/oauth-consent/  # OAuth consent React app
+widgets/dist/widgets/       # Built widget bundles
+widgets/dist/oauth/         # Built consent bundles
 ```
 
 ### Hot Reload Pipeline
 
 ```
-File change → Vite rebuild → Nodemon restart → Updated widget
+File change → Vite rebuild → Nodemon restart → Updated widget/consent UI
 ```
 
 Key files:
@@ -220,8 +238,9 @@ Add entry in `widgets/vite.config.ts`:
 
 ```typescript
 input: {
-  echo: './src/echo/index.html',
-  myWidget: './src/my-widget/index.html'
+  'widgets/index': resolve(__dirname, 'src/echo/index.html'),
+  'widgets/my-widget': resolve(__dirname, 'src/my-widget/index.html'),
+  'oauth/index': resolve(__dirname, 'src/oauth-consent/index.html')
 }
 ```
 

@@ -1,0 +1,633 @@
+[
+  {
+    "clientId": "chatgpt-connector",
+    "clientName": "ChatGPT Connector",
+    "redirectUris": [
+      "https://chat.openai.com/connector_platform_oauth_redirect",
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762366322
+  },
+  {
+    "clientId": "client_7ae73df1dc3b6c45c16f7474ae45f5b7",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762368173
+  },
+  {
+    "clientId": "client_f1d608f62d925684e17454aa9b855b0a",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762371898
+  },
+  {
+    "clientId": "client_d695fe5e3b2f5e14e3165fd9f1aac875",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762373359
+  },
+  {
+    "clientId": "client_b8afe8a79036fc7b058d4715579e6e26",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762374157
+  },
+  {
+    "clientId": "client_a839b67a1631e816be9f52b84798539e",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762374563
+  },
+  {
+    "clientId": "client_c25d481d92586585b2a41e029e26349c",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762375179
+  },
+  {
+    "clientId": "client_0f1c3a7191fe9f56da0820278299287c",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762375851
+  },
+  {
+    "clientId": "client_bd88568d7414d92aae22e0a7174d9216",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762376136
+  },
+  {
+    "clientId": "client_3944089896aeeb49d4e95563c1d9d9d2",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762376339
+  },
+  {
+    "clientId": "client_4ba2d740e920151e7634527d5a0be31b",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762376895
+  },
+  {
+    "clientId": "client_e93485252120d80e010a2db0a62acbba",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762377021
+  },
+  {
+    "clientId": "client_2cf5165e4b09539698fb29c19d16954f",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762378402
+  },
+  {
+    "clientId": "client_8418817ad2d0e160e014e3ef4b79b48f",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762378595
+  },
+  {
+    "clientId": "client_6618670518a1c0446a6704cb7b096056",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762378926
+  },
+  {
+    "clientId": "client_5deb8f2616e5fc58505329c83e4fd0ea",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762379334
+  },
+  {
+    "clientId": "client_13c8dd04c7f8748d764496f3cbb0fe62",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762380479
+  },
+  {
+    "clientId": "client_b3d561390cf288ffe1292d56b7c1a604",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762381579
+  },
+  {
+    "clientId": "client_3fc83893f55bf1ec48f6ef826bde9697",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762381668
+  },
+  {
+    "clientId": "client_8bf74b117c447d71f3abfb58e7bb669b",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762436210
+  },
+  {
+    "clientId": "client_b8188dae1f189d1cde38161c1e20b9a3",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762436960
+  },
+  {
+    "clientId": "client_bdd3888088a9ea6df81cf4a04f6aad03",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762438379
+  },
+  {
+    "clientId": "client_3f8908334f6d05839eb23e2ea59827c4",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762438534
+  },
+  {
+    "clientId": "client_9a32c28ce8ed227c2b02c9f6b61a044f",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762438766
+  },
+  {
+    "clientId": "client_7799e6aa40caca6ebfeb1dfc09a7543d",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762439872
+  },
+  {
+    "clientId": "client_64ad7bfbcb6f516b936129aafaee074d",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762439925
+  },
+  {
+    "clientId": "client_f23c056ba72dfe7f5c83994ff4db4470",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762445838
+  },
+  {
+    "clientId": "client_81d66fc5bc3b9515b2698597da7c4625",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762446028
+  },
+  {
+    "clientId": "client_c7a3851ca93a29f53001a8a681df19b0",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762446290
+  },
+  {
+    "clientId": "client_1d5763b429781338712e288d4ebc1e66",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762446443
+  },
+  {
+    "clientId": "client_f0b4e9925e49899fd4a20a74f3c25e88",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762446572
+  },
+  {
+    "clientId": "client_302f4b55ffc4fb11cac8c1f3b76ce2c7",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762446836
+  },
+  {
+    "clientId": "client_24cb3840bb888d2299de3b1a5df9e823",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762447102
+  },
+  {
+    "clientId": "client_91628f04a116bbd6ed14f6a034da7e56",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762447301
+  },
+  {
+    "clientId": "client_7021dd306e9b5f2ac73f0fe42c849f44",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762447468
+  },
+  {
+    "clientId": "client_f70f9ee7486a7e5c4918b9fe17766db6",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762447965
+  },
+  {
+    "clientId": "client_4143c4458171da5c0d1ea4770b46f7ae",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762448997
+  },
+  {
+    "clientId": "client_e3d4d39f8f7218c5e1779d0edba6c27b",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762449742
+  },
+  {
+    "clientId": "client_bdb4f507c19f68178c48025d9c73007a",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762449892
+  },
+  {
+    "clientId": "client_c9060bd35169c05b7382156432f49a9f",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762450061
+  },
+  {
+    "clientId": "client_2331ef54994da91734d6b6be0236ecc7",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762450222
+  },
+  {
+    "clientId": "client_9fda83a1bb93272825b0a09d3a39f256",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762451100
+  },
+  {
+    "clientId": "client_11d7945ffeea2dd5abda16ca11423596",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762451393
+  },
+  {
+    "clientId": "client_e2810eb1470b6b185f87af4129b21349",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762452060
+  },
+  {
+    "clientId": "client_a3f3071071f465c94775af0b11342b2f",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762453493
+  }
+]
