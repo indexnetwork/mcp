@@ -195,7 +195,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'mcp-session-id'],
 }));
 
-app.use('/widgets', express.static(join(__dirname, '../widgets/dist')));
+app.use('/widgets', express.static(join(__dirname, '../widgets/dist/widgets'), {
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
 app.use('/oauth-assets', express.static(join(__dirname, '../widgets/dist'), {
   cacheControl: false,
   setHeaders(res) {

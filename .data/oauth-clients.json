@@ -629,5 +629,47 @@
       "offline_access"
     ],
     "clientIdIssuedAt": 1762453493
+  },
+  {
+    "clientId": "client_773c09bca71c1c40a1a280b2d60cc3fc",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762461081
+  },
+  {
+    "clientId": "client_bba453cc57463957dcfe7fe647e5c707",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762461382
+  },
+  {
+    "clientId": "client_b4393602ff1e4eb5698a0fa9fc467867",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access"
+    ],
+    "clientIdIssuedAt": 1762529691
   }
 ]

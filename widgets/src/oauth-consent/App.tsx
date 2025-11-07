@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Privy, { LocalStorage } from '@privy-io/js-sdk-core';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
+import logoBlack from './assets/logo-black.svg';
 
 type AuthorizationPageContext = {
   state: string;
@@ -38,90 +39,31 @@ function readAuthorizationContext(): AuthorizationPageContext {
   return JSON.parse(payload) as AuthorizationPageContext;
 }
 
-export default function App() {
-  const context = useMemo(readAuthorizationContext, []);
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [pending, setPending] = useState(false);
+function ConsentExperience({ context }: { context: AuthorizationPageContext }) {
   const [status, setStatus] = useState<StatusState>(STATUS_DEFAULT);
-  const [stage, setStage] = useState<'email' | 'code'>('email');
-  const [privyClient, setPrivyClient] = useState<InstanceType<typeof Privy> | null>(null);
+  const [pending, setPending] = useState(false);
+  const [autoPrompted, setAutoPrompted] = useState(false);
+  const completionStateRef = useRef<'idle' | 'running' | 'done'>('idle');
 
-  useEffect(() => {
-    const client = new Privy({
-      appId: context.privyAppId,
-      clientId: context.privyClientId ?? undefined,
-      storage: new LocalStorage()
-    });
-    setPrivyClient(client);
-  }, [context]);
+  const { ready, authenticated, login, getAccessToken } = usePrivy();
 
   const setStatusMessage = useCallback((message: string, variant: StatusVariant = 'neutral') => {
     setStatus({ message, variant });
   }, []);
 
-  const resetStatus = useCallback(() => setStatus(STATUS_DEFAULT), []);
-
-  const handleSendCode = useCallback(async () => {
-    if (!privyClient) {
-      setStatusMessage('Loading authentication client…', 'error');
+  const finalizeAuthorization = useCallback(async () => {
+    if (completionStateRef.current !== 'idle') {
       return;
     }
 
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setStatusMessage('Enter a valid email address.', 'error');
-      return;
-    }
+    completionStateRef.current = 'running';
 
     try {
       setPending(true);
-      setStatusMessage('Sending verification code…');
-      await privyClient.auth.email.sendCode(trimmed);
-      setStage('code');
-      setStatusMessage('We sent a 6-digit code to your email.', 'success');
-    } catch (error: any) {
-      console.error(error);
-      const message = error?.message ?? 'Failed to send verification code.';
-      setStatusMessage(message, 'error');
-    } finally {
-      setPending(false);
-    }
-  }, [email, privyClient, setStatusMessage]);
+      setStatusMessage('Authorizing access…');
 
-  const handleVerifyCode = useCallback(async () => {
-    if (!privyClient) {
-      setStatusMessage('Loading authentication client…', 'error');
-      return;
-    }
-
-    if (!email) {
-      setStatusMessage('Please request a verification code first.', 'error');
-      setStage('email');
-      return;
-    }
-
-    const trimmedCode = code.trim();
-    if (!trimmedCode) {
-      setStatusMessage('Enter the 6-digit verification code.', 'error');
-      return;
-    }
-
-    try {
-      setPending(true);
-      setStatusMessage('Signing in…');
-      const session = await privyClient.auth.email.loginWithCode(email, trimmedCode);
-      console.log('Privy session', session);
-
-      const appAccessToken = (session as any)?.token;
-      const privyAccessToken = (session as any)?.privy_access_token;
-      console.log('Selected Privy token source', {
-        hasAppAccessToken: Boolean(appAccessToken),
-        hasPrivyAccessToken: Boolean(privyAccessToken),
-        hasAccessTokenField: Boolean(session?.accessToken?.token)
-      });
-
-      if (!appAccessToken && !privyAccessToken) {
+      const token = await getAccessToken();
+      if (!token) {
         throw new Error('Unable to retrieve Privy access token.');
       }
 
@@ -130,8 +72,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           state: context.state,
-          privyToken: appAccessToken ?? privyAccessToken,
-          fallbackToken: privyAccessToken && privyAccessToken !== appAccessToken ? privyAccessToken : undefined
+          privyToken: token,
         })
       });
 
@@ -142,97 +83,104 @@ export default function App() {
       }
 
       const payload = await response.json();
+      completionStateRef.current = 'done';
       setStatusMessage('Authorization successful. Redirecting…', 'success');
       window.location.href = payload.redirectUri;
     } catch (error: any) {
+      completionStateRef.current = 'idle';
       console.error(error);
-      const message = error?.message ?? 'Verification failed.';
+      const message = error?.message ?? 'Authorization failed.';
       setStatusMessage(message, 'error');
     } finally {
       setPending(false);
     }
-  }, [code, context.completeUri, context.state, privyClient, email, setStatusMessage]);
+  }, [context.completeUri, context.state, getAccessToken, setStatusMessage]);
+
+  useEffect(() => {
+    if (ready && authenticated) {
+      finalizeAuthorization();
+    }
+  }, [authenticated, finalizeAuthorization, ready]);
+
+  useEffect(() => {
+    const selectors = [
+      '#privy-modal-close-button',
+      '[data-testid="privy-modal-close-button"]',
+      'button[aria-label="Close"]',
+      'button[aria-label="close modal"]'
+    ];
+
+    const hideCloseButton = () => {
+      selectors.forEach((selector) => {
+        document.querySelectorAll<HTMLElement>(selector).forEach((close) => {
+          close.style.display = 'none';
+          close.querySelectorAll<SVGElement>('svg').forEach((icon) => {
+            icon.style.display = 'none';
+          });
+        });
+      });
+    };
+
+    const interval = window.setInterval(hideCloseButton, 100);
+    const observer = new MutationObserver(hideCloseButton);
+    observer.observe(document.body, { childList: true, subtree: true });
+    hideCloseButton();
+    return () => {
+      observer.disconnect();
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const handleOpenModal = useCallback(() => {
+    if (!ready) {
+      setStatusMessage('Authentication system is starting up. Try again in a moment.', 'error');
+      return;
+    }
+    login();
+  }, [login, ready, setStatusMessage]);
+
+  useEffect(() => {
+    if (ready && !authenticated && !autoPrompted) {
+      setAutoPrompted(true);
+      login();
+    }
+  }, [authenticated, autoPrompted, login, ready]);
 
   return (
-    <main className="card">
-      <h1>Sign in with Privy</h1>
-      <p>
-        Authorize <strong>{context.clientName ?? 'this application'}</strong> to use your Index Network account.
-      </p>
-      <section>
-        <h2>Requested permissions</h2>
-        <ul className="scopes">
-          {context.scope.map((scope) => (
-            <li key={scope}>{scope}</li>
-          ))}
-        </ul>
-      </section>
-      <p className={`status ${status.variant !== 'neutral' ? status.variant : ''}`}>{status.message}</p>
-
-      <form
-        className={stage === 'email' ? '' : 'hidden'}
-        onSubmit={(event) => {
-          event.preventDefault();
-          handleSendCode();
-        }}
-      >
-        <label>
-          Email address
-          <input
-            type="email"
-            placeholder="you@example.com"
-            autoComplete="email"
-            value={email}
-            disabled={pending}
-            onChange={(event) => {
-              setEmail(event.target.value);
-              resetStatus();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                handleSendCode();
-              }
-            }}
-          />
-        </label>
-        <button type="button" onClick={handleSendCode} disabled={pending}>
-          Send verification code
+    <div className="auth-modal">
+      <img src={logoBlack} alt="Index Network" className="logo-mark" />
+      <div className="cta" role="region" aria-live="polite">
+        <button
+          type="button"
+          className="sr-only"
+          disabled={pending || !ready}
+          onClick={handleOpenModal}
+        >
+          Open Privy Sign-in
         </button>
-      </form>
 
-      <form
-        className={stage === 'code' ? '' : 'hidden'}
-        onSubmit={(event) => {
-          event.preventDefault();
-          handleVerifyCode();
-        }}
-      >
-        <label>
-          Verification code
-          <input
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="123456"
-            autoComplete="one-time-code"
-            value={code}
-            disabled={pending}
-            onChange={(event) => {
-              setCode(event.target.value);
-              resetStatus();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                handleVerifyCode();
-              }
-            }}
-          />
-        </label>
-        <button type="button" onClick={handleVerifyCode} disabled={pending}>
-          Verify &amp; continue
-        </button>
-      </form>
-    </main>
+        {status.message && (
+          <p className={`status-line ${status.variant}`}>
+            {status.message}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const context = useMemo(readAuthorizationContext, []);
+
+  return (
+    <PrivyProvider
+      appId={context.privyAppId}
+      clientId={context.privyClientId ?? undefined}
+      config={{
+        loginMethods: ['email', 'google']
+      }}
+    >
+      <ConsentExperience context={context} />
+    </PrivyProvider>
   );
 }
