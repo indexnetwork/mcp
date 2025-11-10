@@ -2,7 +2,7 @@ import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
-import type { Request, Response } from "express";
+import type { Request, Response as ExpressResponse } from "express";
 import cors from "cors";
 import { z } from "zod";
 import { join } from "path";
@@ -23,7 +23,8 @@ import {
   registerClient,
   revokeToken,
   serializeAuthorizationContext,
-  listSupportedScopes
+  listSupportedScopes,
+  getPrivyTokenExchangePayload
 } from "./oauth";
 
 // Widget definition - reads built HTML at server startup
@@ -33,6 +34,11 @@ const widgetHtmlPrimaryPath = join(__dirname, '../widgets/dist/widgets/index.htm
 const widgetHtmlFallbackPath = join(__dirname, '../widgets/dist/src/echo/index.html');
 const consentHtmlPrimaryPath = join(__dirname, '../widgets/dist/oauth/index.html');
 const consentHtmlFallbackPath = join(__dirname, '../widgets/dist/src/oauth-consent/index.html');
+const protocolApiTimeoutMs = Number(process.env.PROTOCOL_API_TIMEOUT_MS ?? '60000');
+const privyTokenExchangeTimeoutMs = Number(process.env.PRIVY_TOKEN_EXCHANGE_TIMEOUT_MS ?? '10000');
+const sectionCharLimit = Number(process.env.EXTRACT_INTENT_SECTION_CHAR_LIMIT ?? '5000');
+const instructionCharLimit = Number(process.env.EXTRACT_INTENT_INSTRUCTION_CHAR_LIMIT ?? '2000');
+const privyTokenExchangeUrl = `${normalizedBaseUrl}/privy/access-token`;
 
 function readFileWithFallback(primary: string, fallback: string) {
   if (existsSync(primary)) {
@@ -72,6 +78,186 @@ function renderAuthorizationPage(context: AuthorizationPageContext) {
   return rewriteAssetUrls(htmlWithContext, 'oauth-assets');
 }
 
+interface DiscoveryIntentRecord {
+  id: string;
+  payload: string;
+  summary?: string | null;
+  userId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  sourceId?: string | null;
+  sourceType?: string | null;
+}
+
+interface DiscoveryRequestResponsePayload {
+  success: boolean;
+  intents: DiscoveryIntentRecord[];
+  filesProcessed: number;
+  linksProcessed: number;
+  intentsGenerated: number;
+}
+
+interface PrivyTokenResponsePayload {
+  privyAccessToken?: string;
+  expiresAt?: number | null;
+  issuedAt?: number | null;
+  userId?: string | null;
+  scope?: string[];
+  error?: string;
+  error_description?: string;
+}
+
+interface IntentPayloadBuildResult {
+  combinedText: string;
+  sectionCount: number;
+}
+
+function ensureProtocolApiBaseUrl(): string {
+  const base = process.env.PROTOCOL_API_URL;
+  if (!base) {
+    throw new Error('PROTOCOL_API_URL is not configured.');
+  }
+  return base.replace(/\/$/, '');
+}
+
+function truncateText(text: string, limit: number): string {
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, limit)}…`;
+}
+
+function buildIntentPayload(input: {
+  fullInputText: string;
+  rawText?: string;
+  conversationHistory?: string;
+  userMemory?: string;
+}): IntentPayloadBuildResult {
+  const sections: Array<{ label: string; text: string }> = [];
+  const addSection = (label: string, value?: string) => {
+    if (value && value.trim()) {
+      sections.push({ label, text: value.trim() });
+    }
+  };
+
+  addSection('Full Input', input.fullInputText);
+  addSection('Uploaded File', input.rawText);
+  addSection('Conversation History', input.conversationHistory);
+  addSection('User Memory', input.userMemory);
+
+  const labeledBlocks = sections
+    .map(({ label, text }) => `=== ${label} ===\n${truncateText(text, sectionCharLimit)}`)
+    .join('\n\n');
+
+  const parts: string[] = [];
+  if (input.fullInputText && input.fullInputText.trim().length > 0) {
+    parts.push(`User instruction: ${truncateText(input.fullInputText.trim(), instructionCharLimit)}`);
+  }
+
+  if (labeledBlocks) {
+    parts.push(labeledBlocks);
+  }
+
+  return {
+    combinedText: parts.join('\n\n').trim(),
+    sectionCount: sections.length,
+  };
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number, label: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    return response;
+  } catch (error) {
+    if ((error as Error)?.name === 'AbortError') {
+      throw new Error(`${label} timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function parseJsonIfPresent<T>(response: Response): Promise<T | undefined> {
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return (await response.json()) as T;
+  }
+  return undefined;
+}
+
+async function exchangePrivyToken(accessToken: string) {
+  const response = await fetchWithTimeout(
+    privyTokenExchangeUrl,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json',
+      },
+    },
+    privyTokenExchangeTimeoutMs,
+    'Privy token exchange'
+  );
+
+  const body = await parseJsonIfPresent<PrivyTokenResponsePayload>(response);
+  if (!response.ok) {
+    const message = body?.error_description || body?.error || response.statusText;
+    throw new Error(`Privy token exchange failed (${response.status}): ${message}`);
+  }
+
+  if (!body?.privyAccessToken) {
+    throw new Error('Token exchange response missing privyAccessToken');
+  }
+
+  return {
+    token: body.privyAccessToken,
+    expiresAt: typeof body.expiresAt === 'number' ? body.expiresAt : undefined,
+  };
+}
+
+async function submitDiscoveryRequest(privyToken: string, payload: string) {
+  const baseUrl = ensureProtocolApiBaseUrl();
+  const formData = new FormData();
+  formData.append('payload', payload);
+
+  const response = await fetchWithTimeout(
+    `${baseUrl}/discover/new`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${privyToken}`,
+      },
+      body: formData,
+    },
+    protocolApiTimeoutMs,
+    'Discovery request'
+  );
+
+  const body = await parseJsonIfPresent<DiscoveryRequestResponsePayload>(response);
+  if (!response.ok || !body) {
+    const message = (body as any)?.error || response.statusText;
+    throw new Error(`Protocol API error (${response.status}): ${message}`);
+  }
+
+  if (!body.success) {
+    throw new Error('Protocol API returned an unsuccessful status.');
+  }
+
+  return body;
+}
+
+function summarizeIntents(intents: DiscoveryIntentRecord[]): string {
+  if (!intents || intents.length === 0) {
+    return 'No intents detected.';
+  }
+  return intents
+    .map((intent, index) => `${index + 1}. ${intent.payload}`)
+    .join('\n');
+}
+
 /**
  * Echo widget configuration for ChatGPT integration
  */
@@ -101,7 +287,7 @@ const indexEchoEmbeddedResource = {
 
 const server = new McpServer({
   name: "index-mcp-server",
-  version: "1.0.0"
+  version: "1.0.1"
 }, {
   capabilities: {
     tools: {},
@@ -153,35 +339,65 @@ server.registerTool("extract_intent", {
   annotations: {
     readOnlyHint: true
   }
-}, async (input, { _meta }) => {
-  console.log(input);
+}, async (input, extra) => {
+  try {
+    const authToken = extra?.authInfo?.token;
+    if (!authToken) {
+      throw new Error('Missing authentication context for extract_intent invocation.');
+    }
 
-  // Log raw text from file if present
-  if (input.rawText) {
-    console.log('\n--- FILE CONTENT ---');
-    console.log('Raw text length:', input.rawText.length, 'characters');
-    console.log('Raw text preview:', input.rawText.substring(0, 50000));
+    const { combinedText, sectionCount } = buildIntentPayload(input);
+    if (!combinedText) {
+      return {
+        content: [{ type: 'text', text: 'No input content provided for intent extraction.' }],
+        structuredContent: {
+          intents: [],
+          filesProcessed: 0,
+          linksProcessed: 0,
+          intentsGenerated: 0,
+        },
+      };
+    }
+
+    console.log(`[extract_intent] Forwarding ${combinedText.length} chars across ${sectionCount} sections to protocol API`);
+
+    const privyToken = await exchangePrivyToken(authToken);
+    const discoveryResponse = await submitDiscoveryRequest(privyToken.token, combinedText);
+    const summary = summarizeIntents(discoveryResponse.intents);
+
+    return {
+      content: [{ type: 'text', text: summary }],
+      structuredContent: {
+        intents: discoveryResponse.intents,
+        filesProcessed: discoveryResponse.filesProcessed,
+        linksProcessed: discoveryResponse.linksProcessed,
+        intentsGenerated: discoveryResponse.intentsGenerated,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to extract intents.';
+    console.error('[extract_intent] Error', error);
+    return {
+      content: [{ type: 'text', text: message }],
+      isError: true,
+    };
   }
+});
 
-  // Log conversation history if present
-  if (input.conversationHistory) {
-    console.log('\n--- CONVERSATION HISTORY ---');
-    console.log('History length:', input.conversationHistory.length, 'characters');
-    console.log('History preview:', input.conversationHistory.substring(0, 50000));
-  }
-
-  // Log user memory if present
-  if (input.userMemory) {
-    console.log('\n--- USER MEMORY ---');
-    console.log('Memory length:', input.userMemory.length, 'characters');
-    console.log('Memory preview:', input.userMemory.substring(0, 50000));
-  }
-
+// Placeholder tool for early Discover filter wiring
+server.registerTool("discover_filter", {
+  title: "Discover Filter",
+  description: "Temporary placeholder that accepts text input and returns ok.",
+  inputSchema: {
+    text: z.string().describe("Text to evaluate for discover filtering"),
+  },
+  annotations: {
+    readOnlyHint: true,
+  },
+}, async () => {
   return {
-    content: [{
-      type: "text",
-      text: "ok",
-    }],
+    content: [{ type: 'text', text: 'ok' }],
+    structuredContent: { status: 'ok' },
   };
 });
 
@@ -227,7 +443,7 @@ function asScope(
   return undefined;
 }
 
-function respondOAuthError(res: Response, error: unknown): void {
+function respondOAuthError(res: ExpressResponse, error: unknown): void {
   const oauthError = (error as any)?.oauthError ?? "server_error";
   const description =
     (error as any)?.errorDescription ??
@@ -266,7 +482,7 @@ function buildMcpManifest(req: Request) {
     "@context": "https://agent-mcp.org/manifest-1.0",
     "protocol_version": "0.1",
     "name": "index-mcp-server",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Index Network MCP server exposing the echo tool and intent logging over OAuth-protected access.",
     "capabilities": {
       "tools": true,
@@ -297,7 +513,7 @@ function buildMcpManifest(req: Request) {
   };
 }
 
-function sendManifest(req: Request, res: Response) {
+function sendManifest(req: Request, res: ExpressResponse) {
   const manifest = buildMcpManifest(req);
   res.type('application/json').send(JSON.stringify(manifest, null, 2));
 }
@@ -434,6 +650,33 @@ app.get('/oauth/userinfo', authenticatePrivy, (req: AuthenticatedRequest, res) =
     scope: req.oauth?.scope.join(' ') ?? '',
     exp: claims.expiration,
     iat: claims.issued_at,
+  });
+});
+
+app.post('/privy/access-token', authenticatePrivy, (req: AuthenticatedRequest, res) => {
+  if (!req.oauth) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const scopes = req.oauth.scope || [];
+  if (!scopes.includes('privy:token:exchange')) {
+    return res.status(403).json({ error: 'insufficient_scope' });
+  }
+
+  const payload = getPrivyTokenExchangePayload(req.oauth.accessToken);
+  if (!payload) {
+    return res.status(404).json({ error: 'token_not_found' });
+  }
+
+  const preview = `${payload.privyToken.slice(0, 4)}...${payload.privyToken.slice(-4)}`;
+  console.log('[privy] Exchanging token for Privy bearer', preview);
+
+  return res.json({
+    privyAccessToken: payload.privyToken,
+    expiresAt: payload.expiresAt ?? null,
+    issuedAt: payload.issuedAt ?? null,
+    userId: payload.userId ?? null,
+    scope: payload.scope,
   });
 });
 

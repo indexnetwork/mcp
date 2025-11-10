@@ -177,7 +177,7 @@ export default function App() {
       appId={context.privyAppId}
       clientId={context.privyClientId ?? undefined}
       config={{
-        loginMethods: ['email', 'google']
+        loginMethods: ['email', 'google', 'offline_access']
       }}
     >
       <ConsentExperience context={context} />

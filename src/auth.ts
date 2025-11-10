@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { VerifyAuthTokenResponse } from "./privy";
 import { validateAccessToken } from "./oauth";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types";
 
 export interface OAuthSessionContext {
   accessToken: string;
@@ -20,6 +21,10 @@ export interface AuthenticatedRequest extends Request {
    * Context for the validated OAuth session associated with this request.
    */
   oauth?: OAuthSessionContext;
+  /**
+   * Authentication payload exposed to the MCP transport layer.
+   */
+  auth?: AuthInfo;
 }
 
 const skipAuth = process.env.DANGEROUSLY_OMIT_AUTH === "true";
@@ -71,6 +76,28 @@ export async function authenticatePrivy(
     expiresAt: validation.expiresAt,
   };
 
+  console.log('[auth] token scopes', validation.scope);
+
+  let resourceUrl: URL | undefined;
+  if (validation.resource) {
+    try {
+      resourceUrl = new URL(validation.resource);
+    } catch (error) {
+      console.warn("Invalid resource indicator on token", validation.resource, error);
+    }
+  }
+
+  req.auth = {
+    token,
+    clientId: validation.clientId,
+    scopes: validation.scope,
+    expiresAt: Math.floor(validation.expiresAt / 1000),
+    resource: resourceUrl,
+    extra: {
+      privyUserId: validation.claims.user_id,
+      privySessionId: validation.claims.session_id,
+    },
+  };
+
   return next();
 }
-

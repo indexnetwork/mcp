@@ -119,6 +119,7 @@ const supportedScopes =
     "profile",
     "email",
     "offline_access",
+    "privy:token:exchange",
   ];
 const defaultScopes =
   process.env.OAUTH_DEFAULT_SCOPES?.split(/\s+/).filter(Boolean) ??
@@ -826,6 +827,30 @@ export function authorizationServerMetadata() {
     code_challenge_methods_supported: ["S256"],
     scopes_supported: supportedScopes,
     token_endpoint_auth_methods_supported: ["none"],
+  };
+}
+
+export interface PrivyTokenExchange {
+  privyToken: string;
+  expiresAt?: number;
+  issuedAt?: number;
+  userId?: string;
+  scope: string[];
+}
+
+export function getPrivyTokenExchangePayload(accessToken: string): PrivyTokenExchange | undefined {
+  cleanupExpiredRecords();
+  const record = accessTokens.get(accessToken);
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    privyToken: record.privyToken,
+    expiresAt: record.privyClaims?.expiration,
+    issuedAt: record.privyClaims?.issued_at,
+    userId: record.privyClaims?.user_id,
+    scope: record.scope,
   };
 }
 
