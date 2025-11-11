@@ -785,5 +785,95 @@
       "privy:token:exchange"
     ],
     "clientIdIssuedAt": 1762547001
+  },
+  {
+    "clientId": "client_5a613558f1f32b24796706b59fec44a4",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "privy:token:exchange"
+    ],
+    "clientIdIssuedAt": 1762814192
+  },
+  {
+    "clientId": "client_43350c098486ab950ebf6c9f6f5a23fc",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "privy:token:exchange"
+    ],
+    "clientIdIssuedAt": 1762815252
+  },
+  {
+    "clientId": "client_a2060a52f9272afc8409a8dd27fb4e5b",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "privy:token:exchange"
+    ],
+    "clientIdIssuedAt": 1762815901
+  },
+  {
+    "clientId": "client_2a4611a10680bd2a209dce1b08c5dadb",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "privy:token:exchange"
+    ],
+    "clientIdIssuedAt": 1762816564
+  },
+  {
+    "clientId": "client_4284c684ccd8836522353f79c5fdbe19",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "privy:token:exchange"
+    ],
+    "clientIdIssuedAt": 1762817452
+  },
+  {
+    "clientId": "client_02fc0a6eced313683e922f97d67b0944",
+    "clientName": "ChatGPT",
+    "redirectUris": [
+      "https://chatgpt.com/connector_platform_oauth_redirect"
+    ],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "privy:token:exchange"
+    ],
+    "clientIdIssuedAt": 1762819015
   }
 ]
