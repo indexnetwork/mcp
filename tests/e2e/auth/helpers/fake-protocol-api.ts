@@ -16,6 +16,7 @@ interface RouteConfig {
 let server: Server | null = null;
 let serverPort: number = 0;
 const routes = new Map<string, RouteConfig>();
+let lastDiscoverFilterBody: any | null = null;
 
 /**
  * Start the fake Protocol API server
@@ -102,10 +103,18 @@ export function setRouteHandler(
 }
 
 /**
+ * Get the last request body sent to /discover/filter
+ */
+export function getLastDiscoverFilterBody(): any | null {
+  return lastDiscoverFilterBody;
+}
+
+/**
  * Reset all route configurations
  */
 export function resetRoutes(): void {
   routes.clear();
+  lastDiscoverFilterBody = null;
 
   // Set up default successful response for /discover/new
   setRouteResponse('/discover/new', {
@@ -168,6 +177,15 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   // Read request body
   const body = await readBody(req);
+
+  // Capture /discover/filter request body
+  if (path === '/discover/filter' && body) {
+    try {
+      lastDiscoverFilterBody = JSON.parse(body);
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }
 
   // Check authorization header
   const authHeader = req.headers.authorization;

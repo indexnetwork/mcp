@@ -12,6 +12,8 @@ import { z } from 'zod';
 import { getItems, performAction } from '../api/backend.js';
 import { config } from '../config.js';
 import { discoverConnectionsFromText } from './discoverConnections.js';
+import { exchangePrivyToken, callDiscoverNew } from '../protocol/client.js';
+import { WIDGETS } from './widgetConfig.js';
 
 /**
  * Zod schemas for tool input validation
@@ -65,11 +67,11 @@ export function registerTools(server: Server) {
             readOnlyHint: true,
           },
           _meta: {
-            'openai/outputTemplate': 'ui://widget/list-view.html',
-            'openai/toolInvocation/invoking': 'Loading items...',
-            'openai/toolInvocation/invoked': 'Items loaded',
-            'openai/widgetAccessible': true,
-            'openai/resultCanProduceWidget': true,
+            'openai/outputTemplate': WIDGETS['list-view'].toolMeta.outputTemplate,
+            'openai/toolInvocation/invoking': WIDGETS['list-view'].toolMeta.invoking,
+            'openai/toolInvocation/invoked': WIDGETS['list-view'].toolMeta.invoked,
+            'openai/widgetAccessible': WIDGETS['list-view'].toolMeta.widgetAccessible,
+            'openai/resultCanProduceWidget': WIDGETS['list-view'].toolMeta.resultCanProduceWidget,
           },
         },
         {
@@ -110,11 +112,11 @@ export function registerTools(server: Server) {
             readOnlyHint: true,
           },
           _meta: {
-            'openai/outputTemplate': 'ui://widget/echo.html',
-            'openai/toolInvocation/invoking': 'Echoing...',
-            'openai/toolInvocation/invoked': 'Echo complete',
-            'openai/widgetAccessible': true,
-            'openai/resultCanProduceWidget': true,
+            'openai/outputTemplate': WIDGETS.echo.toolMeta.outputTemplate,
+            'openai/toolInvocation/invoking': WIDGETS.echo.toolMeta.invoking,
+            'openai/toolInvocation/invoked': WIDGETS.echo.toolMeta.invoked,
+            'openai/widgetAccessible': WIDGETS.echo.toolMeta.widgetAccessible,
+            'openai/resultCanProduceWidget': WIDGETS.echo.toolMeta.resultCanProduceWidget,
           },
         },
         {
@@ -146,9 +148,11 @@ export function registerTools(server: Server) {
             readOnlyHint: true,
           },
           _meta: {
-            'openai/outputTemplate': 'ui://widget/intent-display.html',
-            'openai/toolInvocation/invoking': 'Analyzing intents...',
-            'openai/toolInvocation/invoked': 'Intents analyzed',
+            'openai/outputTemplate': WIDGETS['intent-display'].toolMeta.outputTemplate,
+            'openai/toolInvocation/invoking': WIDGETS['intent-display'].toolMeta.invoking,
+            'openai/toolInvocation/invoked': WIDGETS['intent-display'].toolMeta.invoked,
+            'openai/widgetAccessible': WIDGETS['intent-display'].toolMeta.widgetAccessible,
+            'openai/resultCanProduceWidget': WIDGETS['intent-display'].toolMeta.resultCanProduceWidget,
           },
         },
         {
@@ -172,11 +176,11 @@ export function registerTools(server: Server) {
             readOnlyHint: true,
           },
           _meta: {
-            'openai/outputTemplate': 'ui://widget/discover-connections.html',
-            'openai/toolInvocation/invoking': 'Finding potential connections...',
-            'openai/toolInvocation/invoked': 'Found potential connections',
-            'openai/widgetAccessible': true,
-            'openai/resultCanProduceWidget': true,
+            'openai/outputTemplate': WIDGETS['discover-connections'].toolMeta.outputTemplate,
+            'openai/toolInvocation/invoking': WIDGETS['discover-connections'].toolMeta.invoking,
+            'openai/toolInvocation/invoked': WIDGETS['discover-connections'].toolMeta.invoked,
+            'openai/widgetAccessible': WIDGETS['discover-connections'].toolMeta.widgetAccessible,
+            'openai/resultCanProduceWidget': WIDGETS['discover-connections'].toolMeta.resultCanProduceWidget,
           },
         },
       ],
@@ -446,34 +450,9 @@ async function handleExtractIntent(args: any, auth: any) {
       userMemory ? `=== Context ===\n${truncate(userMemory, config.intentExtraction.sectionCharLimit)}` : '',
     ].filter(Boolean).join('\n\n');
 
-    // 5. Call Protocol API
-    const formData = new FormData();
-    formData.append('payload', payload);
-
-    const apiUrl = `${config.intentExtraction.protocolApiUrl}/discover/new`;
-    console.log('[extract_intent] Calling Protocol API:', apiUrl);
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${privyToken}`,
-      },
-      body: formData,
-      signal: AbortSignal.timeout(config.intentExtraction.protocolApiTimeoutMs),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[extract_intent] Protocol API error: ${response.status}`, errorText);
-      throw new Error(`Protocol API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json() as {
-      intents: any[];
-      filesProcessed?: number;
-      linksProcessed?: number;
-      intentsGenerated: number;
-    };
+    // 5. Call Protocol API via shared client
+    console.log('[extract_intent] Calling Protocol API via client');
+    const data = await callDiscoverNew(privyToken, { text: payload });
 
     // 6. Return structured response for widget
     return {
@@ -503,31 +482,6 @@ async function handleExtractIntent(args: any, auth: any) {
   }
 }
 
-/**
- * Helper function to exchange OAuth token for Privy token
- */
-async function exchangePrivyToken(oauthToken: string): Promise<string> {
-  const tokenPreview = `${oauthToken.slice(0, 8)}...${oauthToken.slice(-8)}`;
-  console.log(`[exchangePrivyToken] Exchanging OAuth token ${tokenPreview}`);
-
-  const response = await fetch(`${config.server.baseUrl}/token/privy/access-token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${oauthToken}`,
-    },
-    signal: AbortSignal.timeout(config.intentExtraction.privyTokenExchangeTimeoutMs),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error(`[exchangePrivyToken] Exchange failed: ${response.status} ${response.statusText}`, errorBody);
-    throw new Error(`Failed to exchange token: ${response.status} ${errorBody}`);
-  }
-
-  const data = await response.json() as { privyAccessToken: string };
-  console.log(`[exchangePrivyToken] Successfully exchanged token`);
-  return data.privyAccessToken;
-}
 
 /**
  * Handle discover_connections tool call

@@ -97,6 +97,18 @@ describe('discoverConnectionsFromText', () => {
         maxConnections: 10,
       });
 
+      // Verify callDiscoverFilter was called with correct intentIds
+      expect(mockCallDiscoverFilter).toHaveBeenCalledTimes(1);
+      expect(mockCallDiscoverFilter).toHaveBeenCalledWith(
+        'privy-token-123',
+        {
+          intentIds: ['intent-1', 'intent-2'],
+          excludeDiscovered: true,
+          page: 1,
+          limit: 10,
+        },
+      );
+
       // Verify
       expect(result.connections.length).toBe(3);
       expect(result.intents.length).toBe(2);
@@ -126,6 +138,47 @@ describe('discoverConnectionsFromText', () => {
           targetUserId: 'user-1',
           intentIds: ['intent-1', 'intent-2'],
         }),
+      );
+    });
+
+    it('passes exactly the intent ids returned from discover/new to discover/filter', async () => {
+      mockExchangePrivyToken.mockResolvedValue('privy-token-xyz');
+      mockCallDiscoverNew.mockResolvedValue({
+        intents: [
+          { id: 'foo', payload: 'interest-a', summary: null, createdAt: '2024-01-01T00:00:00.000Z' },
+          { id: 'bar', payload: 'interest-b', summary: null, createdAt: '2024-01-01T00:00:00.000Z' },
+        ],
+        filesProcessed: 0,
+        linksProcessed: 0,
+        intentsGenerated: 2,
+      });
+
+      mockCallDiscoverFilter.mockResolvedValue({
+        results: [],
+        pagination: { page: 1, limit: 10, hasNext: false, hasPrev: false },
+        filters: { intentIds: ['foo', 'bar'], userIds: null, indexIds: null, sources: null, excludeDiscovered: true },
+      });
+
+      mockCallVibecheck.mockResolvedValue({
+        synthesis: '',
+        targetUserId: '',
+        contextUserId: '',
+      });
+
+      await discoverConnectionsFromText({
+        oauthToken: 'oauth-token-xyz',
+        fullInputText: 'whatever',
+        maxConnections: 10,
+      });
+
+      expect(mockCallDiscoverFilter).toHaveBeenCalledWith(
+        'privy-token-xyz',
+        {
+          intentIds: ['foo', 'bar'],
+          excludeDiscovered: true,
+          page: 1,
+          limit: 10,
+        },
       );
     });
   });
