@@ -38,7 +38,7 @@ function DiscoverConnectionsWidget() {
 
   if (!data) {
     return (
-      <div className="p-4 text-sm text-gray-500">
+      <div style={{ padding: '1rem', fontSize: '0.875rem', color: '#6B7280' }}>
         No connections yet. Run the discover_connections tool first.
       </div>
     );
@@ -46,14 +46,14 @@ function DiscoverConnectionsWidget() {
 
   if (connections.length === 0) {
     return (
-      <div className="p-4 text-sm text-gray-500">
+      <div style={{ padding: '1rem', fontSize: '0.875rem', color: '#6B7280' }}>
         No potential connections found for this input.
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50 p-2">
+    <div style={{ background: '#F9FAFB', padding: '0.5rem' }}>
       {connections.map((conn) => (
         <ConnectionCard
           key={conn.user.id}

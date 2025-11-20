@@ -11,6 +11,7 @@ import {
   validateClientAndRedirectUri,
   getRegisteredClient,
 } from './storage.js';
+import { logAuthEvent } from './logger.js';
 
 // Initialize Privy client for token verification
 const privyClient = new PrivyClient(
@@ -66,17 +67,38 @@ authorizeRouter.get('/', (req, res, next) => {
       );
     }
 
+    // Get client info for validation logging
+    const client = getRegisteredClient(client_id as string);
+    const redirectUriAllowed = client ? client.redirectUris.includes(redirect_uri as string) : false;
+
+    // Log the authorization request
+    logAuthEvent('authorize_request', {
+      client_id,
+      redirect_uri,
+      has_registered_client: !!client,
+      redirect_uri_allowed: redirectUriAllowed,
+    });
+
     // Validate client and redirect URI
     if (!validateClientAndRedirectUri(client_id as string, redirect_uri as string)) {
+      logAuthEvent('authorize_invalid_client', {
+        client_id,
+        redirect_uri,
+        reason: !client ? 'unknown_client_id' : 'redirect_uri_not_in_registered_uris',
+      });
       return res.status(400).json({
         error: 'invalid_client',
         error_description: 'Invalid client_id or redirect_uri',
       });
     }
 
-    // Get client info
-    const client = getRegisteredClient(client_id as string);
+    // This check is redundant after validateClientAndRedirectUri but kept for safety
     if (!client) {
+      logAuthEvent('authorize_invalid_client', {
+        client_id,
+        redirect_uri,
+        reason: 'unknown_client_id',
+      });
       return res.status(400).json({
         error: 'invalid_client',
         error_description: 'Client not found',
@@ -164,8 +186,25 @@ authorizeRouter.post('/complete', async (req, res) => {
       }
     }
 
+    // Get client info for validation logging
+    const client = getRegisteredClient(client_id);
+    const redirectUriAllowed = client ? client.redirectUris.includes(redirect_uri) : false;
+
+    // Log the authorization complete request
+    logAuthEvent('authorize_complete_request', {
+      client_id,
+      redirect_uri,
+      has_registered_client: !!client,
+      redirect_uri_allowed: redirectUriAllowed,
+    });
+
     // Validate client and redirect URI
     if (!validateClientAndRedirectUri(client_id, redirect_uri)) {
+      logAuthEvent('authorize_complete_invalid_client', {
+        client_id,
+        redirect_uri,
+        reason: !client ? 'unknown_client_id' : 'redirect_uri_not_in_registered_uris',
+      });
       return res.status(400).json({
         error: 'invalid_client',
         error_description: 'Invalid client_id or redirect_uri',
@@ -296,8 +335,25 @@ authorizeRouter.post('/', async (req, res) => {
       });
     }
 
+    // Get client info for validation logging
+    const client = getRegisteredClient(client_id);
+    const redirectUriAllowed = client ? client.redirectUris.includes(redirect_uri) : false;
+
+    // Log the authorization consent request
+    logAuthEvent('authorize_consent_request', {
+      client_id,
+      redirect_uri,
+      has_registered_client: !!client,
+      redirect_uri_allowed: redirectUriAllowed,
+    });
+
     // Validate client and redirect URI
     if (!validateClientAndRedirectUri(client_id, redirect_uri)) {
+      logAuthEvent('authorize_consent_invalid_client', {
+        client_id,
+        redirect_uri,
+        reason: !client ? 'unknown_client_id' : 'redirect_uri_not_in_registered_uris',
+      });
       return res.status(400).json({
         error: 'invalid_client',
         error_description: 'Invalid client_id or redirect_uri',

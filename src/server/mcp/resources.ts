@@ -36,8 +36,8 @@ function getWidgetMeta(uri: string) {
     },
     'ui://widget/intent-display.html': {
       'openai/outputTemplate': 'ui://widget/intent-display.html',
-      'openai/toolInvocation/invoking': 'Analyzing intents...',
-      'openai/toolInvocation/invoked': 'Intents analyzed',
+      'openai/toolInvocation/invoking': 'Extracting intents...',
+      'openai/toolInvocation/invoked': 'Intents extracted',
       'openai/widgetAccessible': true,
       'openai/resultCanProduceWidget': true,
     },

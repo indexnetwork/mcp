@@ -15,25 +15,66 @@ export function ConnectionCard({ user, mutualIntentCount, synthesis }: Connectio
   const avatarUrl = user.avatar ?? '';
 
   return (
-    <div className="p-0 mt-0 bg-white border border-b-2 border-gray-800 mb-4">
-      <div className="py-4 px-2 sm:px-4">
+    <div style={{
+      padding: 0,
+      marginTop: 0,
+      background: '#FFFFFF',
+      border: '1px solid #1F2937',
+      borderBottomWidth: '2px',
+      marginBottom: '1rem',
+    }}>
+      <div style={{ padding: '1rem 0.5rem' }}>
         {/* User Header */}
-        <div className="flex flex-wrap sm:flex-nowrap justify-between items-start mb-4">
-          <div className="flex items-center gap-4 w-full sm:w-auto mb-2 sm:mb-0">
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: '1rem',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            width: '100%',
+            marginBottom: '0.5rem',
+          }}>
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={user.name}
-                className="rounded-full w-12 h-12"
+                style={{
+                  borderRadius: '50%',
+                  width: '3rem',
+                  height: '3rem',
+                }}
               />
             ) : (
-              <div className="rounded-full w-12 h-12 bg-gray-200" />
+              <div style={{
+                borderRadius: '50%',
+                width: '3rem',
+                height: '3rem',
+                background: '#E5E7EB',
+              }} />
             )}
             <div>
-              <h2 className="font-bold text-lg text-gray-900 font-ibm-plex-mono">
+              <h2 style={{
+                fontWeight: 700,
+                fontSize: '1.125rem',
+                color: '#111827',
+                fontFamily: '"IBM Plex Mono", monospace',
+                margin: 0,
+              }}>
                 {user.name}
               </h2>
-              <div className="flex items-center gap-4 text-sm text-gray-500 font-ibm-plex-mono">
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                fontSize: '0.875rem',
+                color: '#6B7280',
+                fontFamily: '"IBM Plex Mono", monospace',
+              }}>
                 {mutualIntentCount > 0
                   ? `${mutualIntentCount} mutual intent${mutualIntentCount !== 1 ? 's' : ''}`
                   : 'Potential connection'}
@@ -44,8 +85,13 @@ export function ConnectionCard({ user, mutualIntentCount, synthesis }: Connectio
 
         {/* Synthesis Section */}
         {synthesis && (
-          <div className="mb-2">
-            <h3 className="font-medium text-gray-700 mb-2 text-sm">
+          <div style={{ marginBottom: '0.5rem' }}>
+            <h3 style={{
+              fontWeight: 500,
+              color: '#374151',
+              marginBottom: '0.5rem',
+              fontSize: '0.875rem',
+            }}>
               What could happen here
             </h3>
             <SynthesisText content={synthesis} />

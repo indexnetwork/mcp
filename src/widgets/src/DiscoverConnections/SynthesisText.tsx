@@ -11,7 +11,11 @@ export function SynthesisText({ content }: SynthesisTextProps) {
   }
 
   return (
-    <div className="text-gray-700 text-sm leading-relaxed">
+    <div style={{
+      color: '#374151',
+      fontSize: '0.875rem',
+      lineHeight: 1.625,
+    }}>
       <ReactMarkdown
         components={{
           a: ({ node, href, children, ...props }) => {
@@ -31,7 +35,16 @@ export function SynthesisText({ content }: SynthesisTextProps) {
                 {...props}
                 href={url}
                 onClick={handleClick}
-                className="text-[#007EFF] font-medium py-0.5 px-0.5 -mx-0.5 rounded-md hover:opacity-80 cursor-pointer bg-[#edf5ff]"
+                style={{
+                  color: '#007EFF',
+                  fontWeight: 500,
+                  padding: '0.125rem',
+                  margin: '-0.125rem',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  background: '#edf5ff',
+                  textDecoration: 'none',
+                }}
               >
                 {children}
               </a>

@@ -1,12 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
+import logoBlack from '../assets/logo-black.svg';
+
+type StatusVariant = 'neutral' | 'error' | 'success';
+
+type StatusState = {
+  message: string;
+  variant: StatusVariant;
+};
+
+const STATUS_DEFAULT: StatusState = { message: '', variant: 'neutral' };
 
 function AuthorizePage() {
   const [searchParams] = useSearchParams();
-  const { ready, authenticated, user, login, getAccessToken } = usePrivy();
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { ready, authenticated, login, getAccessToken } = usePrivy();
+
+  const [status, setStatus] = useState<StatusState>(STATUS_DEFAULT);
+  const [pending, setPending] = useState(false);
+  const [autoPrompted, setAutoPrompted] = useState(false);
+  const completionStateRef = useRef<'idle' | 'running' | 'done'>('idle');
 
   // Extract OAuth parameters from URL
   const clientId = searchParams.get('client_id');
@@ -16,41 +29,29 @@ function AuthorizePage() {
   const codeChallenge = searchParams.get('code_challenge');
   const codeChallengeMethod = searchParams.get('code_challenge_method');
 
-  // Handle automatic authorization once authenticated
-  useEffect(() => {
-    // Validate required OAuth parameters
-    if (!clientId || !redirectUri || !codeChallenge || !codeChallengeMethod) {
-      setError('Invalid authorization request: missing required parameters');
+  const setStatusMessage = useCallback((message: string, variant: StatusVariant = 'neutral') => {
+    setStatus({ message, variant });
+  }, []);
+
+  const finalizeAuthorization = useCallback(async () => {
+    if (completionStateRef.current !== 'idle') {
       return;
     }
 
-    if (codeChallengeMethod !== 'S256') {
-      setError('Invalid code_challenge_method: only S256 is supported');
-      return;
-    }
+    completionStateRef.current = 'running';
 
-    // If user is authenticated and not already processing, automatically grant authorization
-    if (ready && authenticated && user && !processing && !error) {
-      handleAutomaticAuthorization();
-    }
-  }, [ready, authenticated, user, clientId, redirectUri, codeChallenge, codeChallengeMethod]);
-
-  const handleAutomaticAuthorization = async () => {
     try {
-      setProcessing(true);
+      setPending(true);
+      setStatusMessage('Authorizing access…');
 
-      // Get Privy access token
-      const privyToken = await getAccessToken();
-      if (!privyToken) {
-        throw new Error('Failed to get Privy access token');
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error('Unable to retrieve Privy access token.');
       }
 
-      // Send authorization to backend
       const response = await fetch('/authorize/complete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           client_id: clientId,
           redirect_uri: redirectUri,
@@ -58,208 +59,189 @@ function AuthorizePage() {
           state,
           code_challenge: codeChallenge,
           code_challenge_method: codeChallengeMethod,
-          privy_user_id: user?.id,
-          privy_token: privyToken,  // Include the Privy token for later exchange
-          user_consent: true,
+          privy_token: token,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error_description || 'Failed to grant authorization');
+        const payload = await response.json().catch(() => ({}));
+        const message = payload.error_description ?? payload.error ?? 'Authorization failed.';
+        throw new Error(message);
       }
 
-      const data = await response.json();
-
-      // Redirect back to ChatGPT with authorization code
-      window.location.href = data.redirect_uri;
-    } catch (err) {
-      console.error('Authorization error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to process authorization');
-      setProcessing(false);
+      const payload = await response.json();
+      completionStateRef.current = 'done';
+      setStatusMessage('Authorization successful. Redirecting…', 'success');
+      window.location.href = payload.redirect_uri;
+    } catch (error: any) {
+      completionStateRef.current = 'idle';
+      console.error(error);
+      const message = error?.message ?? 'Authorization failed.';
+      setStatusMessage(message, 'error');
+    } finally {
+      setPending(false);
     }
-  };
+  }, [clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod, getAccessToken, setStatusMessage]);
 
-  const handleLogin = async () => {
-    try {
-      setError(null);
-      await login();
-      // After successful login, useEffect will automatically handle authorization
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Failed to authenticate. Please try again.');
+  // Validate OAuth parameters
+  useEffect(() => {
+    if (!clientId || !redirectUri || !codeChallenge || !codeChallengeMethod) {
+      setStatusMessage('Invalid authorization request: missing required parameters', 'error');
+      return;
     }
-  };
 
-  if (error) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.errorIcon}>⚠️</div>
-          <h1 style={styles.title}>Authorization Error</h1>
-          <p style={styles.errorText}>{error}</p>
-          {redirectUri && (
-            <button
-              style={styles.button}
-              onClick={() => {
-                const url = new URL(redirectUri);
-                url.searchParams.set('error', 'invalid_request');
-                url.searchParams.set('error_description', error);
-                if (state) url.searchParams.set('state', state);
-                window.location.href = url.toString();
-              }}
-            >
-              Return to Application
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
+    if (codeChallengeMethod !== 'S256') {
+      setStatusMessage('Invalid code_challenge_method: only S256 is supported', 'error');
+      return;
+    }
+  }, [clientId, redirectUri, codeChallenge, codeChallengeMethod, setStatusMessage]);
 
-  // If processing or authenticated, show loading state
-  if (processing || (ready && authenticated && user)) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.spinner}></div>
-          <p style={styles.loadingText}>Authorizing...</p>
-        </div>
-      </div>
-    );
-  }
+  // Finalize authorization when authenticated
+  useEffect(() => {
+    if (ready && authenticated) {
+      finalizeAuthorization();
+    }
+  }, [authenticated, finalizeAuthorization, ready]);
 
-  // If not ready, show initializing
-  if (!ready) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.spinner}></div>
-          <p style={styles.loadingText}>Initializing...</p>
-        </div>
-      </div>
-    );
-  }
+  // Apply Privy modal styling: hide close button, remove rounded corners, hide "Protected by Privy", prevent outside click close
+  useEffect(() => {
+    const applyPrivyStyling = () => {
+      // Hide close button
+      const closeSelectors = [
+        '#privy-modal-close-button',
+        '[data-testid="privy-modal-close-button"]',
+        'button[aria-label="Close"]',
+        'button[aria-label="close modal"]'
+      ];
+      closeSelectors.forEach((selector) => {
+        document.querySelectorAll<HTMLElement>(selector).forEach((el) => {
+          el.style.display = 'none';
+          el.querySelectorAll<SVGElement>('svg').forEach((icon) => {
+            icon.style.display = 'none';
+          });
+        });
+      });
 
-  // Show login button for unauthenticated users
+      // Hide the ModalFooter which contains "Protected by Privy"
+      document.querySelectorAll<HTMLElement>('[class*="ModalFooter"]').forEach((el) => {
+        el.style.display = 'none';
+      });
+
+      // Remove rounded corners from modal content and inputs
+      document.querySelectorAll<HTMLElement>('#privy-modal-content').forEach((el) => {
+        el.style.borderRadius = '0';
+      });
+
+      // Remove rounded corners from buttons and inputs inside Privy modal
+      document.querySelectorAll<HTMLElement>('#privy-dialog button, #privy-dialog input, #privy-modal-content button, #privy-modal-content input').forEach((el) => {
+        el.style.borderRadius = '0';
+      });
+
+      // Prevent clicking outside modal from closing it by intercepting backdrop clicks
+      document.querySelectorAll<HTMLElement>('#privy-dialog-scrim, [data-testid="privy-dialog-scrim"]').forEach((el) => {
+        el.style.pointerEvents = 'none';
+      });
+    };
+
+    const interval = window.setInterval(applyPrivyStyling, 100);
+    const observer = new MutationObserver(applyPrivyStyling);
+    observer.observe(document.body, { childList: true, subtree: true });
+    applyPrivyStyling();
+    return () => {
+      observer.disconnect();
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  // Auto-open Privy login modal
+  useEffect(() => {
+    if (ready && !authenticated && !autoPrompted) {
+      setAutoPrompted(true);
+      login();
+    }
+  }, [authenticated, autoPrompted, login, ready]);
+
+  const handleOpenModal = useCallback(() => {
+    if (!ready) {
+      setStatusMessage('Authentication system is starting up. Try again in a moment.', 'error');
+      return;
+    }
+    login();
+  }, [login, ready, setStatusMessage]);
+
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Sign In Required</h1>
-          <p style={styles.subtitle}>
-            ChatGPT needs you to authenticate to continue
-          </p>
-        </div>
-
-        <div style={styles.appInfo}>
-          <div style={styles.appIcon}>🤖</div>
-          <h2 style={styles.appName}>ChatGPT</h2>
-        </div>
-
+    <div style={styles.authModal}>
+      <img src={logoBlack} alt="Index Network" style={styles.logoMark} />
+      <div style={styles.cta}>
         <button
-          style={styles.button}
-          onClick={handleLogin}
+          type="button"
+          style={styles.srOnly}
+          disabled={pending || !ready}
+          onClick={handleOpenModal}
         >
-          Sign in with Privy
+          Open Privy Sign-in
         </button>
 
-        <p style={styles.footer}>
-          You'll be redirected back to ChatGPT after signing in
-        </p>
+        {status.message && (
+          <p style={{
+            ...styles.statusLine,
+            ...(status.variant === 'error' ? styles.statusError : {}),
+            ...(status.variant === 'success' ? styles.statusSuccess : {}),
+          }}>
+            {status.message}
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
+  authModal: {
+    width: '100%',
     minHeight: '100vh',
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: '20px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    alignItems: 'center',
+    background: '#f5f5f7',
+    fontFamily: "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-    padding: '40px',
-    maxWidth: '500px',
-    width: '100%',
+  logoMark: {
+    position: 'absolute',
+    top: '5vh',
+    left: '20vw',
+    width: '96px',
+    height: 'auto',
+    pointerEvents: 'none',
+    zIndex: 1,
   },
-  header: {
+  cta: {
+    marginTop: '200px',
     textAlign: 'center',
-    marginBottom: '30px',
   },
-  title: {
-    fontSize: '28px',
-    fontWeight: '600',
-    color: '#1a202c',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    fontSize: '16px',
-    color: '#718096',
-  },
-  appInfo: {
-    textAlign: 'center',
-    padding: '20px',
-    background: '#f7fafc',
-    borderRadius: '8px',
-    marginBottom: '30px',
-  },
-  appIcon: {
-    fontSize: '48px',
-    marginBottom: '12px',
-  },
-  appName: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: '8px',
-  },
-  button: {
-    width: '100%',
-    padding: '14px',
-    background: '#667eea',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-  },
-  footer: {
-    textAlign: 'center',
+  statusLine: {
+    margin: 0,
     fontSize: '13px',
-    color: '#a0aec0',
-    marginTop: '20px',
-  },
-  spinner: {
-    border: '3px solid #f3f4f6',
-    borderTop: '3px solid #667eea',
-    borderRadius: '50%',
-    width: '40px',
-    height: '40px',
-    animation: 'spin 1s linear infinite',
-    margin: '0 auto 16px',
-  },
-  loadingText: {
+    lineHeight: 1.5,
     textAlign: 'center',
-    color: '#718096',
+    color: '#4b5563',
   },
-  errorIcon: {
-    fontSize: '48px',
-    textAlign: 'center',
-    marginBottom: '16px',
+  statusError: {
+    color: '#b91c1c',
   },
-  errorText: {
-    color: '#e53e3e',
-    textAlign: 'center',
-    marginBottom: '20px',
+  statusSuccess: {
+    color: '#15803d',
+  },
+  srOnly: {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    padding: 0,
+    margin: '-1px',
+    overflow: 'hidden',
+    clip: 'rect(0, 0, 0, 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
   },
 };
 

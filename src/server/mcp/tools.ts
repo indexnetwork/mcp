@@ -556,6 +556,48 @@ async function handleDiscoverConnections(args: any, auth: any) {
 
   const { fullInputText, maxConnections } = parseResult.data;
 
+  // NOTE: dev-only short circuit for UI testing.
+  // When DISCOVER_CONNECTIONS_MOCK=1 is set, this tool returns static connections
+  // and skips all protocol API calls. Do not enable in production.
+  // if (process.env.DISCOVER_CONNECTIONS_MOCK === '1') {
+  //   const connections = [
+  //     {
+  //       user: {
+  //         id: 'user-1',
+  //         name: 'Alice Example',
+  //         avatar: null,
+  //       },
+  //       mutualIntentCount: 3,
+  //       synthesis:
+  //         'This is a fake vibecheck for Alice. You might collaborate on [climate research](https://index.network/intents/intent-1) and [DAO governance](https://index.network/intents/intent-2).',
+  //     },
+  //     {
+  //       user: {
+  //         id: 'user-2',
+  //         name: 'Bob Sample',
+  //         avatar: null,
+  //       },
+  //       mutualIntentCount: 1,
+  //       synthesis:
+  //         'This is a fake vibecheck for Bob focused on [developer tooling](https://index.network/intents/intent-3).',
+  //     },
+  //   ];
+
+  //   return {
+  //     content: [
+  //       {
+  //         type: 'text',
+  //         text: `Found ${connections.length} potential connections (mock).`,
+  //       },
+  //     ],
+  //     structuredContent: {
+  //       connections,
+  //       intentsExtracted: 3,
+  //       connectionsFound: connections.length,
+  //     },
+  //   };
+  // }
+
   try {
     // 3. Call orchestrator
     const { connections, intents } = await discoverConnectionsFromText({
