@@ -566,28 +566,6 @@ export async function startTestServer(options: {
       if (method === 'tools/call') {
         const { name, arguments: args } = params || {};
 
-        if (name === 'echo') {
-          if (!args?.text) {
-            return res.json({
-              jsonrpc: '2.0',
-              result: {
-                content: [{ type: 'text', text: 'Invalid input: Text is required' }],
-                isError: true,
-              },
-              id: id || null,
-            });
-          }
-
-          return res.json({
-            jsonrpc: '2.0',
-            result: {
-              content: [{ type: 'text', text: `Echo: ${args.text}` }],
-              structuredContent: { text: args.text },
-            },
-            id: id || null,
-          });
-        }
-
         if (name === 'extract_intent') {
           if (!args?.fullInputText) {
             return res.json({

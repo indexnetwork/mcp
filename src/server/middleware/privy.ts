@@ -81,39 +81,3 @@ export async function verifyPrivyToken(req: Request, res: Response, next: NextFu
   }
 }
 
-/**
- * Verify Privy token from server-to-server calls
- * Uses HTTP Basic Auth with Privy App ID and Secret
- */
-export async function callPrivyAPI(endpoint: string, method: string = 'GET', body?: any) {
-  const auth = Buffer.from(`${config.privy.appId}:${config.privy.appSecret}`).toString('base64');
-
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'privy-app-id': config.privy.appId,
-      'Content-Type': 'application/json',
-    },
-  };
-
-  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-    options.body = JSON.stringify(body);
-  }
-
-  const response = await fetch(`https://auth.privy.io/api/v1${endpoint}`, options);
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Privy API error: ${response.status} ${error}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Get Privy user information
- */
-export async function getPrivyUser(userId: string) {
-  return callPrivyAPI(`/users/${userId}`, 'GET');
-}

@@ -13,7 +13,6 @@ import { authorizeRouter } from './oauth/authorize.js';
 import { tokenRouter } from './oauth/token.js';
 import { mcpRouter } from './mcp/handlers.js';
 import { initializeMCPServer } from './mcp/server.js';
-import { verifyPrivyToken } from './middleware/privy.js';
 import path from 'path';
 
 const app = express();

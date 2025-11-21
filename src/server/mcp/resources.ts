@@ -10,48 +10,10 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { WIDGETS } from './widgetConfig.js';
 
 // Widget registry to store loaded widgets (just metadata, files served via HTTP)
 const widgetRegistry = new Map<string, { name: string; description: string }>();
-
-/**
- * Get widget metadata for a given URI
- */
-function getWidgetMeta(uri: string) {
-  // Map widget URIs to their metadata
-  const metadataMap: Record<string, any> = {
-    'ui://widget/list-view.html': {
-      'openai/outputTemplate': 'ui://widget/list-view.html',
-      'openai/toolInvocation/invoking': 'Loading items...',
-      'openai/toolInvocation/invoked': 'Items loaded',
-      'openai/widgetAccessible': true,
-      'openai/resultCanProduceWidget': true,
-    },
-    'ui://widget/echo.html': {
-      'openai/outputTemplate': 'ui://widget/echo.html',
-      'openai/toolInvocation/invoking': 'Echoing...',
-      'openai/toolInvocation/invoked': 'Echo complete',
-      'openai/widgetAccessible': true,
-      'openai/resultCanProduceWidget': true,
-    },
-    'ui://widget/intent-display.html': {
-      'openai/outputTemplate': 'ui://widget/intent-display.html',
-      'openai/toolInvocation/invoking': 'Extracting intents...',
-      'openai/toolInvocation/invoked': 'Intents extracted',
-      'openai/widgetAccessible': true,
-      'openai/resultCanProduceWidget': true,
-    },
-    'ui://widget/discover-connections.html': {
-      'openai/outputTemplate': 'ui://widget/discover-connections.html',
-      'openai/toolInvocation/invoking': 'Finding potential connections...',
-      'openai/toolInvocation/invoked': 'Found potential connections',
-      'openai/widgetAccessible': true,
-      'openai/resultCanProduceWidget': true,
-    },
-  };
-
-  return metadataMap[uri] || {};
-}
 
 /**
  * Register all widget resources with the MCP server
@@ -72,41 +34,13 @@ export async function registerWidgetResources(server: Server) {
     console.log(`✓ Found shared widget JS: ${sharedJSFile}`);
   }
 
-  // Define widgets to register
-  const widgets = [
-    {
-      fileName: 'list-view',
-      uri: 'ui://widget/list-view.html',
-      name: 'ListView Widget',
-      description: 'Interactive list view with actions',
-    },
-    {
-      fileName: 'echo',
-      uri: 'ui://widget/echo.html',
-      name: 'Echo Widget',
-      description: 'Simple echo widget that displays text',
-    },
-    {
-      fileName: 'intent-display',
-      uri: 'ui://widget/intent-display.html',
-      name: 'IntentDisplay Widget',
-      description: 'Displays extracted intents with archive/delete actions',
-    },
-    {
-      fileName: 'discover-connections',
-      uri: 'ui://widget/discover-connections.html',
-      name: 'DiscoverConnections Widget',
-      description: 'Displays discovered connections with synthesis summaries',
-    },
-  ];
-
-  // Load all widgets
-  for (const widget of widgets) {
-    const widgetFilePath = join(widgetPath, `${widget.fileName}.js`);
+  // Load all widgets from WIDGETS config
+  for (const config of Object.values(WIDGETS)) {
+    const widgetFilePath = join(widgetPath, `${config.fileName}.js`);
     if (existsSync(widgetFilePath)) {
-      await loadWidget(widgetPath, widget.fileName, widget.name, widget.description);
+      await loadWidget(widgetPath, config.fileName, config.title, config.description);
     } else {
-      console.warn(`⚠️  ${widget.name} not found at ${widgetFilePath}`);
+      console.warn(`⚠️  ${config.title} not found at ${widgetFilePath}`);
       console.warn(`   Run \`bun run build:widgets\` to build widgets.`);
     }
   }
@@ -121,13 +55,18 @@ export async function registerWidgetResources(server: Server) {
         // Extract widget filename from URI (e.g., "ui://widget/echo.html" -> "echo")
         const widgetFileName = uri.split('/').pop()?.replace('.html', '') || 'unknown';
 
+        // Find widget config to get resource metadata (if any)
+        const widgetConfig = Object.values(WIDGETS).find(w => w.uri === widgetUri);
+        const resourceMeta = widgetConfig?.resourceMeta || {};
+
         return {
           contents: [
             {
               uri: widgetUri,
               mimeType: 'text/html+skybridge',
               text: createWidgetHTML(widgetData.name, widgetFileName),
-              _meta: getWidgetMeta(widgetUri),
+              // Resource-level metadata only (tool metadata is in tools.ts)
+              _meta: resourceMeta,
             },
           ],
         };

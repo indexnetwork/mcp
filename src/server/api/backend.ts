@@ -48,31 +48,3 @@ export async function callBackendAPI(
   }
 }
 
-/**
- * Example: Get items (placeholder - replace with actual Protocol API endpoints)
- */
-export async function getItems(privyUserId: string, filter?: string): Promise<any[]> {
-  const endpoint = filter ? `/items?filter=${encodeURIComponent(filter)}` : '/items';
-  return callBackendAPI(privyUserId, endpoint, { method: 'GET' });
-}
-
-/**
- * Example: Perform action on an item (placeholder - replace with actual Protocol API endpoints)
- */
-export async function performAction(
-  privyUserId: string,
-  itemId: string,
-  action: string
-): Promise<any> {
-  return callBackendAPI(privyUserId, `/items/${itemId}/actions`, {
-    method: 'POST',
-    body: JSON.stringify({ action }),
-  });
-}
-
-/**
- * Example: Get user profile (placeholder - replace with actual Protocol API endpoints)
- */
-export async function getUserProfile(privyUserId: string): Promise<any> {
-  return callBackendAPI(privyUserId, `/users/${privyUserId}`, { method: 'GET' });
-}

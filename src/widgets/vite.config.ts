@@ -13,8 +13,6 @@ export default defineConfig({
     emptyOutDir: true,
     lib: {
       entry: {
-        'list-view': 'src/ListView/index.tsx',
-        'echo': 'src/Echo/index.tsx',
         'intent-display': 'src/IntentDisplay/index.tsx',
         'discover-connections': 'src/DiscoverConnections/index.tsx',
       },

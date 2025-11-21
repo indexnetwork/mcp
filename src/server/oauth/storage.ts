@@ -4,6 +4,7 @@
  * In production, replace with a database (Redis, PostgreSQL, etc.)
  */
 
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 // Static client configuration
@@ -213,10 +214,10 @@ export function validatePKCE(codeVerifier: string, codeChallenge: string): boole
 }
 
 function createSHA256Hash(input: string): Uint8Array {
-  // Use Bun's CryptoHasher for proper SHA-256 hashing
-  const hasher = new Bun.CryptoHasher('sha256');
-  hasher.update(input);
-  return hasher.digest();
+  // Use Node.js crypto for proper SHA-256 hashing (works in both Node and Bun)
+  const hash = createHash('sha256');
+  hash.update(input);
+  return new Uint8Array(hash.digest());
 }
 
 function base64UrlEncode(bytes: Uint8Array): string {

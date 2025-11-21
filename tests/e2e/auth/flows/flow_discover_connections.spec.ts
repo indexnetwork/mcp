@@ -10,6 +10,7 @@ import {
   setRouteResponse,
   setRouteError,
   setRouteHandler,
+  getLastDiscoverFilterBody,
 } from '../helpers/index.js';
 
 describe('Flow: Discover Connections Tool', () => {
@@ -149,6 +150,11 @@ describe('Flow: Discover Connections Tool', () => {
 
     // Check summary text
     expect(result.body.result.content[0].text).toContain('2 potential connections');
+
+    // Verify that /discover/filter was called with the correct intentIds
+    const filterBody = getLastDiscoverFilterBody();
+    expect(filterBody).toBeDefined();
+    expect(filterBody.intentIds).toEqual(['intent-1', 'intent-2']);
   });
 
   it('returns empty connections when no intents extracted', async () => {

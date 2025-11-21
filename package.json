@@ -13,9 +13,10 @@
     "build:server": "tsc -p tsconfig.server.json",
     "start": "NODE_ENV=production bun dist/server/index.js",
     "preview": "bun run build && bun run start",
-    "test": "bun test",
-    "test:e2e-auth": "bun --bun vitest run --config vitest.e2e.auth.config.ts",
-    "test:e2e-auth:watch": "bun --bun vitest --config vitest.e2e.auth.config.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:e2e": "vitest run tests/e2e",
+    "test:watch": "vitest",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

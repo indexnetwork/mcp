@@ -3,7 +3,7 @@
  * Tests calling MCP tools with valid access tokens
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   runFullOauthFlow,
   callMcpWithAccessToken,
@@ -15,23 +15,6 @@ import {
 } from '../helpers/index.js';
 
 describe('Flow: Tool Usage with Valid Token', () => {
-  it('successfully calls echo tool with valid token', async () => {
-    const { accessToken } = await runFullOauthFlow();
-
-    const result = await callMcpWithAccessToken(accessToken, 'echo', {
-      text: 'Hello from test!',
-    });
-
-    // Should succeed
-    expect(result.status).toBe(200);
-    expect(result.body.error).toBeUndefined();
-
-    // Should have result
-    expect(result.body.result).toBeDefined();
-    expect(result.body.result.content).toBeDefined();
-    expect(result.body.result.content[0].text).toContain('Hello from test!');
-  });
-
   it('successfully calls extract_intent tool with valid token', async () => {
     // Set up fake Protocol API response
     setRouteResponse('/discover/new', {
@@ -156,16 +139,6 @@ describe('Flow: Tool Usage with Valid Token', () => {
   });
 
   describe('Tool input validation', () => {
-    it('rejects echo tool with missing required text', async () => {
-      const { accessToken } = await runFullOauthFlow();
-
-      const result = await callMcpWithAccessToken(accessToken, 'echo', {});
-
-      expect(result.status).toBe(200);
-      expect(result.body.result.isError).toBe(true);
-      expect(result.body.result.content[0].text).toContain('Invalid input');
-    });
-
     it('rejects extract_intent with missing fullInputText', async () => {
       const { accessToken } = await runFullOauthFlow();
 
@@ -187,24 +160,19 @@ describe('Flow: Tool Usage with Valid Token', () => {
       const { accessToken } = await runFullOauthFlow();
 
       // Call multiple tools
-      const result1 = await callMcpWithAccessToken(accessToken, 'echo', {
-        text: 'First call',
+      const result1 = await callMcpWithAccessToken(accessToken, 'extract_intent', {
+        fullInputText: 'First call',
       });
-      const result2 = await callMcpWithAccessToken(accessToken, 'echo', {
-        text: 'Second call',
-      });
-      const result3 = await callMcpWithAccessToken(accessToken, 'extract_intent', {
-        fullInputText: 'Third call',
+      const result2 = await callMcpWithAccessToken(accessToken, 'extract_intent', {
+        fullInputText: 'Second call',
       });
 
       // All should succeed
       expect(result1.status).toBe(200);
       expect(result2.status).toBe(200);
-      expect(result3.status).toBe(200);
 
       expect(result1.body.result.isError).toBeUndefined();
       expect(result2.body.result.isError).toBeUndefined();
-      expect(result3.body.result.isError).toBeUndefined();
     });
   });
 });

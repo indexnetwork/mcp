@@ -9,6 +9,7 @@ import {
   runFullOauthFlow,
   callMcpWithAccessToken,
   getTestContext,
+  setRouteResponse,
 } from '../helpers/index.js';
 
 describe('Errors: MCP Endpoint', () => {
@@ -17,7 +18,7 @@ describe('Errors: MCP Endpoint', () => {
       const result = await rawMcpRequest({
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'echo', arguments: { text: 'test' } },
+        params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
         id: 'test-1',
       });
 
@@ -31,7 +32,7 @@ describe('Errors: MCP Endpoint', () => {
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: 'test-1',
         },
         { 'Authorization': 'InvalidFormat token' }
@@ -46,7 +47,7 @@ describe('Errors: MCP Endpoint', () => {
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: 'test-1',
         },
         { 'Authorization': 'Bearer ' }
@@ -60,7 +61,7 @@ describe('Errors: MCP Endpoint', () => {
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: 'test-1',
         },
         { 'Authorization': 'Bearer invalid.jwt.token' }
@@ -85,7 +86,7 @@ describe('Errors: MCP Endpoint', () => {
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: 'test-1',
         },
         { 'Authorization': `Bearer ${fakeToken}` }
@@ -100,10 +101,15 @@ describe('Errors: MCP Endpoint', () => {
     it('returns proper error for insufficient scope', async () => {
       // This would require creating a token with limited scopes
       // For now, we test with a valid token which should have sufficient scopes
+      setRouteResponse('/discover/new', {
+        intents: [{ id: '1', description: 'Test' }],
+        intentsGenerated: 1,
+      });
+
       const { accessToken } = await runFullOauthFlow({ scope: 'read' });
 
-      const result = await callMcpWithAccessToken(accessToken, 'echo', {
-        text: 'test',
+      const result = await callMcpWithAccessToken(accessToken, 'extract_intent', {
+        fullInputText: 'test',
       });
 
       // Should succeed with read scope
@@ -146,7 +152,7 @@ describe('Errors: MCP Endpoint', () => {
       const result = await rawMcpRequest({
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'echo', arguments: { text: 'test' } },
+        params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
         id: 'test-1',
       });
 
@@ -161,8 +167,8 @@ describe('Errors: MCP Endpoint', () => {
     it('returns JSON-RPC format for tool errors', async () => {
       const { accessToken } = await runFullOauthFlow();
 
-      const result = await callMcpWithAccessToken(accessToken, 'echo', {
-        // Missing required text
+      const result = await callMcpWithAccessToken(accessToken, 'extract_intent', {
+        // Missing required fullInputText
       });
 
       expect(result.status).toBe(200);
@@ -177,7 +183,7 @@ describe('Errors: MCP Endpoint', () => {
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: 'test-1',
         },
         { 'Authorization': 'Bearer invalid' }
@@ -190,13 +196,18 @@ describe('Errors: MCP Endpoint', () => {
     });
 
     it('includes proper JSON-RPC id in responses', async () => {
+      setRouteResponse('/discover/new', {
+        intents: [{ id: '1', description: 'Test' }],
+        intentsGenerated: 1,
+      });
+
       const { accessToken } = await runFullOauthFlow();
 
       const result = await rawMcpRequest(
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: 'my-custom-id-123',
         },
         { 'Authorization': `Bearer ${accessToken}` }
@@ -206,13 +217,18 @@ describe('Errors: MCP Endpoint', () => {
     });
 
     it('handles null id correctly', async () => {
+      setRouteResponse('/discover/new', {
+        intents: [{ id: '1', description: 'Test' }],
+        intentsGenerated: 1,
+      });
+
       const { accessToken } = await runFullOauthFlow();
 
       const result = await rawMcpRequest(
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           id: null,
         },
         { 'Authorization': `Bearer ${accessToken}` }
@@ -222,13 +238,18 @@ describe('Errors: MCP Endpoint', () => {
     });
 
     it('handles missing id correctly', async () => {
+      setRouteResponse('/discover/new', {
+        intents: [{ id: '1', description: 'Test' }],
+        intentsGenerated: 1,
+      });
+
       const { accessToken } = await runFullOauthFlow();
 
       const result = await rawMcpRequest(
         {
           jsonrpc: '2.0',
           method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'test' } },
+          params: { name: 'extract_intent', arguments: { fullInputText: 'test' } },
           // No id field
         },
         { 'Authorization': `Bearer ${accessToken}` }

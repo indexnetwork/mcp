@@ -11,6 +11,7 @@ import {
   decodeAccessToken,
   rawTokenRequest,
   getTestContext,
+  setRouteResponse,
 } from '../helpers/index.js';
 
 describe('Flow: Refresh Tokens', () => {
@@ -80,20 +81,30 @@ describe('Flow: Refresh Tokens', () => {
   });
 
   it('allows tool calls with refreshed access token', async () => {
+    setRouteResponse('/discover/new', {
+      intents: [{ id: '1', description: 'Test after refresh' }],
+      intentsGenerated: 1,
+    });
+
     const initial = await runFullOauthFlow();
     const refreshed = await refreshTokens(initial.refreshToken);
 
     // Call tool with new access token
-    const result = await callMcpWithAccessToken(refreshed.newAccessToken, 'echo', {
-      text: 'Test after refresh',
+    const result = await callMcpWithAccessToken(refreshed.newAccessToken, 'extract_intent', {
+      fullInputText: 'Test after refresh',
     });
 
     expect(result.status).toBe(200);
     expect(result.body.error).toBeUndefined();
-    expect(result.body.result.content[0].text).toContain('Test after refresh');
+    expect(result.body.result.structuredContent.intentsGenerated).toBe(1);
   });
 
   it('supports multiple sequential refresh cycles', async () => {
+    setRouteResponse('/discover/new', {
+      intents: [{ id: '1', description: 'After multiple refreshes' }],
+      intentsGenerated: 1,
+    });
+
     let current = await runFullOauthFlow();
 
     // Refresh multiple times
@@ -116,8 +127,8 @@ describe('Flow: Refresh Tokens', () => {
     }
 
     // Final token should still work
-    const result = await callMcpWithAccessToken(current.accessToken, 'echo', {
-      text: 'After multiple refreshes',
+    const result = await callMcpWithAccessToken(current.accessToken, 'extract_intent', {
+      fullInputText: 'After multiple refreshes',
     });
 
     expect(result.status).toBe(200);
@@ -131,7 +142,6 @@ describe('Flow: Refresh Tokens', () => {
 
     // The Privy token should still be accessible after refresh
     // We verify this by calling extract_intent which requires the Privy token
-    const { setRouteResponse } = await import('../helpers/index.js');
     setRouteResponse('/discover/new', {
       intents: [{ id: '1', description: 'Test' }],
       intentsGenerated: 1,
