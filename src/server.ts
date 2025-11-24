@@ -708,28 +708,6 @@ const indexDiscoverWidget = {
   html: discoverWidgetHtml
 };
 
-/**
- * Embedded resource for OpenAI widget integration
- */
-const indexEchoEmbeddedResource = {
-  type: "resource" as const,
-  resource: {
-    uri: indexEchoWidget.templateUri,
-    mimeType: indexEchoWidget.mimeType,
-    text: indexEchoWidget.html,
-    title: indexEchoWidget.title
-  }
-};
-
-const indexDiscoverEmbeddedResource = {
-  type: "resource" as const,
-  resource: {
-    uri: indexDiscoverWidget.templateUri,
-    mimeType: indexDiscoverWidget.mimeType,
-    text: indexDiscoverWidget.html,
-    title: indexDiscoverWidget.title
-  }
-};
 
 const server = new McpServer({
   name: "index-mcp-server",
@@ -747,7 +725,14 @@ server.registerResource(indexEchoWidget.resourceName, indexEchoWidget.templateUr
       uri: indexEchoWidget.templateUri,
       mimeType: indexEchoWidget.mimeType,
       text: indexEchoWidget.html,
-      title: indexEchoWidget.title
+      title: indexEchoWidget.title,
+      _meta: {
+        "openai/widgetAccessible": true,
+        "openai/resultCanProduceWidget": true,
+        "openai/outputTemplate": indexEchoWidget.templateUri,
+        "openai/toolInvocation/invoking": indexEchoWidget.invoking,
+        "openai/toolInvocation/invoked": indexEchoWidget.invoked,
+      }
     }
   ]
 }));
@@ -758,7 +743,14 @@ server.registerResource(indexDiscoverWidget.resourceName, indexDiscoverWidget.te
       uri: indexDiscoverWidget.templateUri,
       mimeType: indexDiscoverWidget.mimeType,
       text: indexDiscoverWidget.html,
-      title: indexDiscoverWidget.title
+      title: indexDiscoverWidget.title,
+      _meta: {
+        "openai/widgetAccessible": true,
+        "openai/resultCanProduceWidget": true,
+        "openai/outputTemplate": indexDiscoverWidget.templateUri,
+        "openai/toolInvocation/invoking": indexDiscoverWidget.invoking,
+        "openai/toolInvocation/invoked": indexDiscoverWidget.invoked,
+      }
     }
   ]
 }));
@@ -767,18 +759,19 @@ server.registerResource(indexDiscoverWidget.resourceName, indexDiscoverWidget.te
 server.registerTool("echo", {
   title: "Echo Tool",
   description: "Echo back the provided message",
-  inputSchema: { message: z.string() }
+  inputSchema: { message: z.string() },
+  _meta: {
+    "openai/outputTemplate": indexEchoWidget.templateUri,
+    "openai/widgetAccessible": true,
+    "openai/resultCanProduceWidget": true,
+  }
 }, async ({ message }) => {
   return {
     content: [{ type: "text", text: `Echo: ${message}` }],
     structuredContent: { message },
     _meta: {
-      "openai/widgetAccessible": true,
-      "openai/resultCanProduceWidget": true,
-      "openai/outputTemplate": indexEchoWidget.templateUri,
       "openai/toolInvocation/invoking": indexEchoWidget.invoking,
       "openai/toolInvocation/invoked": indexEchoWidget.invoked,
-      "openai.com/widget": indexEchoEmbeddedResource
     }
   };
 });
@@ -888,6 +881,11 @@ server.registerTool("discover_filter", {
   annotations: {
     readOnlyHint: true,
   },
+  _meta: {
+    "openai/outputTemplate": indexDiscoverWidget.templateUri,
+    "openai/widgetAccessible": true,
+    "openai/resultCanProduceWidget": true,
+  }
 }, async (rawInput, extra) => {
   try {
     const input = discoverFilterValidator.parse(rawInput) as DiscoverFilterInput;
@@ -926,12 +924,8 @@ server.registerTool("discover_filter", {
         ],
         structuredContent,
         _meta: {
-          'openai/widgetAccessible': true,
-          'openai/resultCanProduceWidget': true,
-          'openai/outputTemplate': indexDiscoverWidget.templateUri,
           'openai/toolInvocation/invoking': indexDiscoverWidget.invoking,
           'openai/toolInvocation/invoked': indexDiscoverWidget.invoked,
-          'openai.com/widget': indexDiscoverEmbeddedResource,
         },
       };
     }
@@ -1040,12 +1034,8 @@ server.registerTool("discover_filter", {
       ],
       structuredContent,
       _meta: {
-        'openai/widgetAccessible': true,
-        'openai/resultCanProduceWidget': true,
-        'openai/outputTemplate': indexDiscoverWidget.templateUri,
         'openai/toolInvocation/invoking': indexDiscoverWidget.invoking,
         'openai/toolInvocation/invoked': indexDiscoverWidget.invoked,
-        'openai.com/widget': indexDiscoverEmbeddedResource,
       },
     };
   } catch (error) {
