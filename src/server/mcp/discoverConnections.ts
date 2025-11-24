@@ -174,6 +174,9 @@ export async function discoverConnectionsFromText(
   const limit = Math.min(opts.maxConnections, 100);
   const intentIds = intents.map(i => i.id);
 
+  //sleep 10 seconds
+  await new Promise(resolve => setTimeout(resolve, 10000));
+
   const filterResponse = await callDiscoverFilter(privyToken, {
     intentIds,
     excludeDiscovered: true,

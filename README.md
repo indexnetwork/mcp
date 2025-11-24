@@ -132,7 +132,7 @@ bun run dev:all
 bun run type-check
 
 # Run tests
-bun test
+bun run test
 
 # Build everything for production
 bun run build
