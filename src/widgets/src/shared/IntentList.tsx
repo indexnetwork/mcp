@@ -61,35 +61,24 @@ export default function IntentList<T extends BaseIntent>({
   }
 
   return (
-    <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#F5F5F5', padding: '0.75rem', borderRadius: '4px' }}>
+    <div className={className}>
       {sortedIntents.map((intent) => {
         const summary = (intent.summary && intent.summary.trim().length > 0 ? intent.summary : intent.payload).trim();
         const createdAt = new Date(intent.createdAt);
-        const createdLabel = Number.isNaN(createdAt.getTime()) ? null : createdAt.toLocaleDateString('en-US', { 
-          month: 'short', 
+        const createdLabel = Number.isNaN(createdAt.getTime()) ? null : createdAt.toLocaleDateString('en-US', {
+          month: 'short',
           day: 'numeric'
         });
         const isFresh = newIntentIds.has(intent.id);
         const isSelectedSource = selectedIntentIds.has(intent.id);
         const canOpenSource = intent.sourceType === 'link' && intent.sourceValue && /^https?:/i.test(intent.sourceValue);
-        
-        const cardClasses = `relative border rounded-sm transition-colors ${isSelectedSource
-          ? 'border-[#99CFFF] bg-[#F0F7FF] shadow-sm shadow-[rgba(0,126,255,0.16)]'
-          : isFresh
-            ? 'border-[#0A8F5A] bg-[#F1FFF5] shadow-sm shadow-[rgba(10,143,90,0.12)]'
-            : 'border-[#E0E0E0] hover:border-[#CCCCCC]'}`;
-
-        const cardStyle = {
-          padding: '0.75rem',
-          background: isSelectedSource ? '#F0F7FF' : isFresh ? '#F1FFF5' : '#FFFFFF'
-        };
 
         return (
-          <div key={intent.id} className={`group ${cardClasses}`} style={cardStyle}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+          <div key={intent.id} className="chatgpt-card">
+            <div className="chatgpt-card-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {createdLabel && (
-                  <span className="flex items-center text-[10px] text-[#777] font-ibm-plex-mono whitespace-nowrap" style={{ gap: '0.375rem' }}>
+                  <span className="chatgpt-pill" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                     <svg
                       width="12"
                       height="12"
@@ -99,7 +88,6 @@ export default function IntentList<T extends BaseIntent>({
                       strokeWidth="1.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className="text-[#777]"
                     >
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                       <line x1="16" y1="2" x2="16" y2="6" />
@@ -110,11 +98,11 @@ export default function IntentList<T extends BaseIntent>({
                   </span>
                 )}
                 {isFresh && !isSelectedSource && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#0A8F5A] text-white text-[10px] tracking-wide font-ibm-plex-mono uppercase">New</span>
+                  <span className="chatgpt-pill" style={{ backgroundColor: '#0A8F5A', color: '#fff' }}>New</span>
                 )}
               </div>
             </div>
-            <div className="text-xs text-[#333] font-medium leading-snug line-clamp-3 break-words" style={{ marginTop: '0.5rem' }}>{summary}</div>
+            <div className="chatgpt-card-title">{summary}</div>
           </div>
         );
       })}

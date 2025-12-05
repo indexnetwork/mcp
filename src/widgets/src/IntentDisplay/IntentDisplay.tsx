@@ -60,8 +60,8 @@ export function IntentDisplay() {
 
   if (!data || visibleIntents.length === 0) {
     return (
-      <div className="intent-widget">
-        <div className="intent-empty">
+      <div className="chatgpt-widget-root">
+        <div className="chatgpt-empty">
           {removedIntentIds.size > 0
             ? 'All intents have been removed.'
             : 'No intents detected.'}
@@ -73,9 +73,9 @@ export function IntentDisplay() {
   const { filesProcessed = 0, linksProcessed = 0, intentsGenerated } = data;
 
   return (
-    <div className="intent-widget">
+    <div className="chatgpt-widget-root">
       {(filesProcessed > 0 || linksProcessed > 0) && (
-        <div className="intent-summary">
+        <div className="chatgpt-summary">
           Generated {intentsGenerated} intent(s) from {filesProcessed} file(s) and {linksProcessed} link(s)
         </div>
       )}

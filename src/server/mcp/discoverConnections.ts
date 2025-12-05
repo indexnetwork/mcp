@@ -175,7 +175,10 @@ export async function discoverConnectionsFromText(
   const intentIds = intents.map(i => i.id);
 
   //sleep 10 seconds
+  console.log('[discoverConnectionsFromText] Before sleep', Date.now());
   await new Promise(resolve => setTimeout(resolve, 10000));
+  console.log('[discoverConnectionsFromText] Finished waiting');
+  console.log('[discoverConnectionsFromText] After sleep', Date.now());
 
   const filterResponse = await callDiscoverFilter(privyToken, {
     intentIds,

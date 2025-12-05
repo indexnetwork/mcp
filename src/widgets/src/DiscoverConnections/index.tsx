@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { useOpenAi } from '../hooks/useOpenAi';
 import { ConnectionCard } from './ConnectionCard';
+import '../shared/chatgpt-theme.css';
 import './styles.css';
 
 // Types
@@ -38,22 +39,26 @@ function DiscoverConnectionsWidget() {
 
   if (!data) {
     return (
-      <div style={{ padding: '1rem', fontSize: '0.875rem', color: '#6B7280' }}>
-        No connections yet. Run the discover_connections tool first.
+      <div className="chatgpt-widget-root">
+        <div className="chatgpt-empty">
+          No connections yet. Run the discover_connections tool first.
+        </div>
       </div>
     );
   }
 
   if (connections.length === 0) {
     return (
-      <div style={{ padding: '1rem', fontSize: '0.875rem', color: '#6B7280' }}>
-        No potential connections found for this input.
+      <div className="chatgpt-widget-root">
+        <div className="chatgpt-empty">
+          No potential connections found for this input.
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ background: '#F9FAFB', padding: '0.5rem' }}>
+    <div className="chatgpt-widget-root">
       {connections.map((conn) => (
         <ConnectionCard
           key={conn.user.id}

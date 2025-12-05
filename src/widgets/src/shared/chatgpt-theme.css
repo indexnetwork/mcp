@@ -1,0 +1,101 @@
+/**
+ * ChatGPT-style theme for widgets
+ * Dark neutral cards with subtle borders and modern spacing
+ */
+
+:root {
+  --chatgpt-bg: #050509;
+  --chatgpt-card-bg: #131314;
+  --chatgpt-card-border: #2a2b32;
+  --chatgpt-text-primary: #ececf1;
+  --chatgpt-text-secondary: #acacbe;
+  --chatgpt-pill-bg: #20212b;
+  --chatgpt-pill-border: #3f414a;
+  --chatgpt-link-color: #8ab4f8;
+}
+
+.chatgpt-widget-root {
+  background-color: transparent;
+  color: var(--chatgpt-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.chatgpt-card {
+  background-color: var(--chatgpt-card-bg);
+  border-radius: 0.75rem;
+  border: 1px solid var(--chatgpt-card-border);
+  padding: 1rem;
+}
+
+.chatgpt-card + .chatgpt-card {
+  margin-top: 0.75rem;
+}
+
+.chatgpt-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.chatgpt-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--chatgpt-text-primary);
+}
+
+.chatgpt-card-subtitle {
+  font-size: 0.75rem;
+  color: var(--chatgpt-text-secondary);
+}
+
+.chatgpt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--chatgpt-pill-border);
+  background-color: var(--chatgpt-pill-bg);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--chatgpt-text-secondary);
+}
+
+.chatgpt-markdown {
+  font-size: 0.8125rem;
+  color: var(--chatgpt-text-secondary);
+}
+
+.chatgpt-markdown p {
+  margin: 0.25rem 0;
+}
+
+.chatgpt-markdown a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--chatgpt-link-color);
+}
+
+.chatgpt-markdown a:hover {
+  opacity: 0.85;
+}
+
+.chatgpt-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--chatgpt-text-secondary);
+  font-size: 0.875rem;
+}
+
+.chatgpt-summary {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background-color: var(--chatgpt-card-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--chatgpt-card-border);
+  font-size: 0.75rem;
+  color: var(--chatgpt-text-secondary);
+}
