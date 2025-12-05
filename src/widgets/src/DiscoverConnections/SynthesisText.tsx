@@ -1,4 +1,4 @@
-import React from 'react';
+import type { MouseEventHandler } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 interface SynthesisTextProps {
@@ -11,13 +11,13 @@ export function SynthesisText({ content }: SynthesisTextProps) {
   }
 
   return (
-    <div className="chatgpt-markdown">
+    <div className="space-y-1">
       <ReactMarkdown
         components={{
           a: ({ node, href, children, ...props }) => {
             const url = href ?? '#';
 
-            const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {
+            const handleClick: MouseEventHandler<HTMLAnchorElement> = (e) => {
               e.preventDefault();
               try {
                 (window as any).openai?.openExternal?.({ href: url });
@@ -31,7 +31,7 @@ export function SynthesisText({ content }: SynthesisTextProps) {
                 {...props}
                 href={url}
                 onClick={handleClick}
-                style={{ cursor: 'pointer' }}
+                className="text-link underline underline-offset-2 cursor-pointer hover:opacity-80"
               >
                 {children}
               </a>

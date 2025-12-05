@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Badge } from '@openai/apps-sdk-ui/components/Badge';
+import { Calendar } from '@openai/apps-sdk-ui/components/Icon';
+import { LoadingIndicator } from '@openai/apps-sdk-ui/components/Indicator';
 
 interface BaseIntent {
   id: string;
@@ -47,21 +50,21 @@ export default function IntentList<T extends BaseIntent>({
   if (isLoading) {
     return (
       <div className={`flex items-center justify-center py-6 ${className}`}>
-        <span className="h-6 w-6 border-2 border-[#CCCCCC] border-t-transparent rounded-full animate-spin" />
+        <LoadingIndicator size={24} />
       </div>
     );
   }
 
   if (sortedIntents.length === 0) {
     return (
-      <div className={`text-xs text-[#666] font-ibm-plex-mono py-4 text-center ${className}`}>
+      <div className={`py-4 text-center text-sm text-secondary ${className}`}>
         <p>{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className={className}>
+    <div className={`space-y-3 ${className}`}>
       {sortedIntents.map((intent) => {
         const summary = (intent.summary && intent.summary.trim().length > 0 ? intent.summary : intent.payload).trim();
         const createdAt = new Date(intent.createdAt);
@@ -71,38 +74,28 @@ export default function IntentList<T extends BaseIntent>({
         });
         const isFresh = newIntentIds.has(intent.id);
         const isSelectedSource = selectedIntentIds.has(intent.id);
-        const canOpenSource = intent.sourceType === 'link' && intent.sourceValue && /^https?:/i.test(intent.sourceValue);
 
         return (
-          <div key={intent.id} className="chatgpt-card">
-            <div className="chatgpt-card-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div
+            key={intent.id}
+            className="w-full rounded-2xl border border-default bg-surface p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
                 {createdLabel && (
-                  <span className="chatgpt-pill" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                    {createdLabel}
-                  </span>
+                  <Badge variant="soft" color="secondary" size="sm">
+                    <Calendar className="size-3" />
+                    <span className="ml-1">{createdLabel}</span>
+                  </Badge>
                 )}
                 {isFresh && !isSelectedSource && (
-                  <span className="chatgpt-pill" style={{ backgroundColor: '#0A8F5A', color: '#fff' }}>New</span>
+                  <Badge variant="soft" color="success" size="sm">
+                    New
+                  </Badge>
                 )}
               </div>
             </div>
-            <div className="chatgpt-card-title">{summary}</div>
+            <p className="mt-2">{summary}</p>
           </div>
         );
       })}

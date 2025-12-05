@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useOpenAi } from '../hooks/useOpenAi';
+import { EmptyMessage } from '@openai/apps-sdk-ui/components/EmptyMessage';
+import { Lightbulb } from '@openai/apps-sdk-ui/components/Icon';
+import { LoadingIndicator } from '@openai/apps-sdk-ui/components/Indicator';
 import IntentList from '../shared/IntentList';
-import './styles.css';
 
 interface Intent {
   id: string;
@@ -58,14 +60,29 @@ export function IntentDisplay() {
     }
   };
 
-  if (!data || visibleIntents.length === 0) {
+  // Loading state - intents array not yet available
+  if (!data?.intents) {
     return (
-      <div className="chatgpt-widget-root">
-        <div className="chatgpt-empty">
-          {removedIntentIds.size > 0
-            ? 'All intents have been removed.'
-            : 'No intents detected.'}
-        </div>
+      <div className="w-full flex items-center justify-center py-6">
+        <LoadingIndicator size={24} />
+      </div>
+    );
+  }
+
+  // Empty state - data loaded but no intents
+  if (visibleIntents.length === 0) {
+    return (
+      <div className="w-full">
+        <EmptyMessage fill="none">
+          <EmptyMessage.Icon>
+            <Lightbulb />
+          </EmptyMessage.Icon>
+          <EmptyMessage.Title>
+            {removedIntentIds.size > 0
+              ? 'All intents have been removed.'
+              : 'No intents detected.'}
+          </EmptyMessage.Title>
+        </EmptyMessage>
       </div>
     );
   }
@@ -73,9 +90,9 @@ export function IntentDisplay() {
   const { filesProcessed = 0, linksProcessed = 0, intentsGenerated } = data;
 
   return (
-    <div className="chatgpt-widget-root">
+    <div className="w-full space-y-3 pb-2">
       {(filesProcessed > 0 || linksProcessed > 0) && (
-        <div className="chatgpt-summary">
+        <div className="rounded-xl border border-default bg-surface p-3">
           Generated {intentsGenerated} intent(s) from {filesProcessed} file(s) and {linksProcessed} link(s)
         </div>
       )}

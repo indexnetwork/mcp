@@ -1,7 +1,7 @@
+import '../main.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { IntentDisplay } from './IntentDisplay';
-import '../shared/chatgpt-theme.css';
 
 const root = document.getElementById('root');
 if (root) {
