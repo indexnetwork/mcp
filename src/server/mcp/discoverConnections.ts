@@ -170,26 +170,58 @@ export async function discoverConnectionsFromText(
     return { connections: [], intents: [] };
   }
 
-  // Step C: Call discover/filter
+  // Step C: Call discover/filter with bounded polling
+  // The Protocol API has eventual consistency - intents are written synchronously
+  // but indexing happens in a background queue. We poll until we get results
+  // or hit our configured limits.
   const limit = Math.min(opts.maxConnections, 100);
   const intentIds = intents.map(i => i.id);
 
-  //sleep 10 seconds
-  console.log('[discoverConnectionsFromText] Before sleep', Date.now());
-  await new Promise(resolve => setTimeout(resolve, 10000));
-  console.log('[discoverConnectionsFromText] Finished waiting');
-  console.log('[discoverConnectionsFromText] After sleep', Date.now());
+  const { maxAttempts, initialDelayMs, maxTotalWaitMs } = config.discoverFilter;
+  const startTime = Date.now();
+  let attempt = 0;
+  let filterResponse: Awaited<ReturnType<typeof callDiscoverFilter>> | null = null;
 
-  const filterResponse = await callDiscoverFilter(privyToken, {
-    intentIds,
-    excludeDiscovered: true,
-    page: 1,
-    limit,
-  });
+  while (attempt < maxAttempts) {
+    const elapsed = Date.now() - startTime;
+    if (elapsed >= maxTotalWaitMs) {
+      console.log(`[discoverConnectionsFromText] Max total wait time (${maxTotalWaitMs}ms) exceeded after ${attempt} attempts`);
+      break;
+    }
 
-  // If no results, return empty
-  if (filterResponse.results.length === 0) {
-    console.log('[discoverConnectionsFromText] No connections found, returning with intents only');
+    // Wait before each attempt (including the first one, to give indexer time)
+    const delayMs = Math.min(initialDelayMs * (attempt + 1), maxTotalWaitMs - elapsed);
+    if (delayMs > 0) {
+      console.log(`[discoverConnectionsFromText] Attempt ${attempt + 1}/${maxAttempts}: waiting ${delayMs}ms before calling discover/filter`);
+      await delay(delayMs);
+    }
+
+    attempt++;
+
+    try {
+      filterResponse = await callDiscoverFilter(privyToken, {
+        intentIds,
+        excludeDiscovered: true,
+        page: 1,
+        limit,
+      });
+
+      // If we got results, we're done polling
+      if (filterResponse.results.length > 0) {
+        console.log(`[discoverConnectionsFromText] Found ${filterResponse.results.length} connection(s) on attempt ${attempt}`);
+        break;
+      }
+
+      console.log(`[discoverConnectionsFromText] Attempt ${attempt}: no results yet, will retry`);
+    } catch (error) {
+      console.error(`[discoverConnectionsFromText] Attempt ${attempt} failed:`, error);
+      // Continue polling on transient errors
+    }
+  }
+
+  // If no results after polling, return empty
+  if (!filterResponse || filterResponse.results.length === 0) {
+    console.log('[discoverConnectionsFromText] No connections found after polling, returning with intents only');
     return { connections: [], intents };
   }
 
