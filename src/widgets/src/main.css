@@ -1,0 +1,8 @@
+/* Apps SDK UI + Tailwind foundation - must be first */
+@import "tailwindcss";
+@import "@openai/apps-sdk-ui/css";
+
+/* Required for tailwind to find class references in apps-sdk-ui components */
+@source "../../node_modules/@openai/apps-sdk-ui";
+
+/* Widget-specific overrides (minimal - prefer apps-sdk-ui tokens) */

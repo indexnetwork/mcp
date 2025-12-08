@@ -78,6 +78,13 @@ export const config = {
     sectionCharLimit: Number(process.env.EXTRACT_INTENT_SECTION_CHAR_LIMIT ?? '5000'),
     instructionCharLimit: Number(process.env.EXTRACT_INTENT_INSTRUCTION_CHAR_LIMIT ?? '2000'),
   },
+
+  // Discover connections polling configuration
+  discoverFilter: {
+    maxAttempts: Number(process.env.DISCOVER_FILTER_MAX_ATTEMPTS ?? '6'),
+    initialDelayMs: Number(process.env.DISCOVER_FILTER_INITIAL_DELAY_MS ?? '2000'),
+    maxTotalWaitMs: Number(process.env.DISCOVER_FILTER_MAX_TOTAL_WAIT_MS ?? '30000'),
+  },
 } as const;
 
 // Helper to check if we're in production

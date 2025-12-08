@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.2",
+    "@openai/apps-sdk-ui": "^0.2.1",
     "@privy-io/react-auth": "^1.92.4",
     "@privy-io/server-auth": "^1.32.5",
     "cors": "^2.8.5",

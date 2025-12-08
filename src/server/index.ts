@@ -83,6 +83,8 @@ app.get(['/favicon.ico', '/favicon.png', '/favicon.svg'], (_req, res) => {
 app.use('/.well-known', wellKnownRouter);
 // Mirror discovery endpoints under /mcp/.well-known for clients that scope metadata per resource path
 app.use('/mcp/.well-known', wellKnownRouter);
+// Mirror discovery endpoints under /token/.well-known for clients that expect token endpoint metadata
+app.use('/token/.well-known', wellKnownRouter);
 
 // OAuth2 Dynamic Client Registration
 app.post('/register', handleDynamicClientRegistration);

@@ -1,4 +1,6 @@
-import React from 'react';
+import { Avatar } from '@openai/apps-sdk-ui/components/Avatar';
+import { Badge } from '@openai/apps-sdk-ui/components/Badge';
+import { Members } from '@openai/apps-sdk-ui/components/Icon';
 import { SynthesisText } from './SynthesisText';
 
 interface ConnectionCardProps {
@@ -15,89 +17,39 @@ export function ConnectionCard({ user, mutualIntentCount, synthesis }: Connectio
   const avatarUrl = user.avatar ?? '';
 
   return (
-    <div style={{
-      padding: 0,
-      marginTop: 0,
-      background: '#FFFFFF',
-      border: '1px solid #1F2937',
-      borderBottomWidth: '2px',
-      marginBottom: '1rem',
-    }}>
-      <div style={{ padding: '1rem 0.5rem' }}>
-        {/* User Header */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '1rem',
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            width: '100%',
-            marginBottom: '0.5rem',
-          }}>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={user.name}
-                style={{
-                  borderRadius: '50%',
-                  width: '3rem',
-                  height: '3rem',
-                }}
-              />
-            ) : (
-              <div style={{
-                borderRadius: '50%',
-                width: '3rem',
-                height: '3rem',
-                background: '#E5E7EB',
-              }} />
-            )}
-            <div>
-              <h2 style={{
-                fontWeight: 700,
-                fontSize: '1.125rem',
-                color: '#111827',
-                fontFamily: '"IBM Plex Mono", monospace',
-                margin: 0,
-              }}>
-                {user.name}
-              </h2>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                fontSize: '0.875rem',
-                color: '#6B7280',
-                fontFamily: '"IBM Plex Mono", monospace',
-              }}>
-                {mutualIntentCount > 0
-                  ? `${mutualIntentCount} mutual intent${mutualIntentCount !== 1 ? 's' : ''}`
-                  : 'Potential connection'}
-              </div>
-            </div>
+    <div className="w-full rounded-2xl border border-default bg-surface p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {avatarUrl ? (
+            <Avatar imageUrl={avatarUrl} name={user.name} size={40} />
+          ) : (
+            <Avatar name={user.name} size={40} />
+          )}
+          <div>
+            <h2 className="font-semibold">{user.name}</h2>
+            <p className="text-sm text-secondary">
+              {mutualIntentCount > 0
+                ? `${mutualIntentCount} mutual intent${mutualIntentCount !== 1 ? 's' : ''}`
+                : 'Potential connection'}
+            </p>
           </div>
         </div>
-
-        {/* Synthesis Section */}
-        {synthesis && (
-          <div style={{ marginBottom: '0.5rem' }}>
-            <h3 style={{
-              fontWeight: 500,
-              color: '#374151',
-              marginBottom: '0.5rem',
-              fontSize: '0.875rem',
-            }}>
-              What could happen here
-            </h3>
-            <SynthesisText content={synthesis} />
-          </div>
+        {mutualIntentCount > 0 && (
+          <Badge variant="soft" color="secondary" size="sm">
+            <Members className="size-3" />
+            <span className="ml-1">{mutualIntentCount}</span>
+          </Badge>
         )}
       </div>
+
+      {synthesis && (
+        <div className="mt-3 border-t border-subtle pt-3">
+          <p className="mb-2 text-xs uppercase tracking-wide text-secondary">
+            What could happen here
+          </p>
+          <SynthesisText content={synthesis} />
+        </div>
+      )}
     </div>
   );
 }

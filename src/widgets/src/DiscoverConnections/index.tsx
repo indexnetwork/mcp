@@ -1,8 +1,10 @@
-import React from 'react';
+import '../main.css';
 import { createRoot } from 'react-dom/client';
 import { useOpenAi } from '../hooks/useOpenAi';
+import { EmptyMessage } from '@openai/apps-sdk-ui/components/EmptyMessage';
+import { Members } from '@openai/apps-sdk-ui/components/Icon';
+import { LoadingIndicator } from '@openai/apps-sdk-ui/components/Indicator';
 import { ConnectionCard } from './ConnectionCard';
-import './styles.css';
 
 // Types
 interface Connection {
@@ -36,24 +38,35 @@ function DiscoverConnectionsWidget() {
 
   console.log('[DiscoverConnectionsWidget] Rendering with', connections.length, 'connections');
 
-  if (!data) {
+  // Loading state - connections array not yet available
+  if (!data?.connections) {
     return (
-      <div style={{ padding: '1rem', fontSize: '0.875rem', color: '#6B7280' }}>
-        No connections yet. Run the discover_connections tool first.
+      <div className="w-full flex items-center justify-center py-6">
+        <LoadingIndicator size={24} />
       </div>
     );
   }
 
   if (connections.length === 0) {
     return (
-      <div style={{ padding: '1rem', fontSize: '0.875rem', color: '#6B7280' }}>
-        No potential connections found for this input.
+      <div className="w-full">
+        <EmptyMessage fill="none">
+          <EmptyMessage.Icon>
+            <Members />
+          </EmptyMessage.Icon>
+          <EmptyMessage.Title>
+            No potential connections found
+          </EmptyMessage.Title>
+          <EmptyMessage.Description>
+            Try adding more intents to find connections.
+          </EmptyMessage.Description>
+        </EmptyMessage>
       </div>
     );
   }
 
   return (
-    <div style={{ background: '#F9FAFB', padding: '0.5rem' }}>
+    <div className="w-full space-y-3">
       {connections.map((conn) => (
         <ConnectionCard
           key={conn.user.id}

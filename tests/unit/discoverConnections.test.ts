@@ -14,6 +14,20 @@ vi.mock('../../src/server/protocol/client.js', () => ({
   callVibecheck: vi.fn(),
 }));
 
+// Mock config with fast polling values for tests
+vi.mock('../../src/server/config.js', () => ({
+  config: {
+    intentExtraction: {
+      instructionCharLimit: 2000,
+    },
+    discoverFilter: {
+      maxAttempts: 3,
+      initialDelayMs: 10, // Fast for tests
+      maxTotalWaitMs: 100, // Fast for tests
+    },
+  },
+}));
+
 // Import mocked functions
 import {
   exchangePrivyToken,
@@ -97,8 +111,7 @@ describe('discoverConnectionsFromText', () => {
         maxConnections: 10,
       });
 
-      // Verify callDiscoverFilter was called with correct intentIds
-      expect(mockCallDiscoverFilter).toHaveBeenCalledTimes(1);
+      // Verify callDiscoverFilter was called with correct intentIds (at least once due to polling)
       expect(mockCallDiscoverFilter).toHaveBeenCalledWith(
         'privy-token-123',
         {
@@ -317,7 +330,7 @@ describe('discoverConnectionsFromText', () => {
       ).rejects.toThrow('discover/new failed');
     });
 
-    it('throws when discover/filter fails', async () => {
+    it('returns empty connections when discover/filter fails on all polling attempts', async () => {
       mockCallDiscoverNew.mockResolvedValue({
         intents: [{ id: 'intent-1', payload: 'Test', createdAt: '2024-01-01T00:00:00Z' }],
         filesProcessed: 0,
@@ -325,15 +338,139 @@ describe('discoverConnectionsFromText', () => {
         intentsGenerated: 1,
       });
 
+      // All polling attempts fail
       mockCallDiscoverFilter.mockRejectedValue(new Error('discover/filter failed: 500'));
 
-      await expect(
-        discoverConnectionsFromText({
-          oauthToken: 'oauth-token',
-          fullInputText: 'Test',
-          maxConnections: 10,
+      const result = await discoverConnectionsFromText({
+        oauthToken: 'oauth-token',
+        fullInputText: 'Test',
+        maxConnections: 10,
+      });
+
+      // Should return empty connections (not throw) after polling exhausted
+      expect(result.connections.length).toBe(0);
+      expect(result.intents.length).toBe(1);
+      // Polling should have been attempted multiple times
+      expect(mockCallDiscoverFilter.mock.calls.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('polling behavior', () => {
+    it('returns connections when second polling attempt succeeds', async () => {
+      mockCallDiscoverNew.mockResolvedValue({
+        intents: [{ id: 'intent-1', payload: 'Test', createdAt: '2024-01-01T00:00:00Z' }],
+        filesProcessed: 0,
+        linksProcessed: 0,
+        intentsGenerated: 1,
+      });
+
+      // First call returns empty (indexer not ready), second call returns results
+      mockCallDiscoverFilter
+        .mockResolvedValueOnce({
+          results: [],
+          pagination: { page: 1, limit: 10, hasNext: false, hasPrev: false },
+          filters: { intentIds: null, userIds: null, indexIds: null, sources: null, excludeDiscovered: true },
         })
-      ).rejects.toThrow('discover/filter failed');
+        .mockResolvedValueOnce({
+          results: [
+            {
+              user: { id: 'user-1', name: 'Alice', email: null, avatar: null, intro: null },
+              totalStake: 100,
+              intents: [{ intent: { id: 'intent-1', payload: 'Test', createdAt: '2024-01-01T00:00:00Z' }, totalStake: 100, reasonings: [] }],
+            },
+          ],
+          pagination: { page: 1, limit: 10, hasNext: false, hasPrev: false },
+          filters: { intentIds: null, userIds: null, indexIds: null, sources: null, excludeDiscovered: true },
+        });
+
+      mockCallVibecheck.mockResolvedValue({
+        synthesis: 'Alice synthesis',
+        targetUserId: 'user-1',
+        contextUserId: 'context',
+      });
+
+      const result = await discoverConnectionsFromText({
+        oauthToken: 'oauth-token',
+        fullInputText: 'Test input',
+        maxConnections: 10,
+      });
+
+      // Should have polled twice
+      expect(mockCallDiscoverFilter).toHaveBeenCalledTimes(2);
+      // Should return the connection from second attempt
+      expect(result.connections.length).toBe(1);
+      expect(result.connections[0].user.name).toBe('Alice');
+      expect(result.connections[0].synthesis).toBe('Alice synthesis');
+    });
+
+    it('returns empty connections after max polling attempts with no results', async () => {
+      mockCallDiscoverNew.mockResolvedValue({
+        intents: [{ id: 'intent-1', payload: 'Test', createdAt: '2024-01-01T00:00:00Z' }],
+        filesProcessed: 0,
+        linksProcessed: 0,
+        intentsGenerated: 1,
+      });
+
+      // All polling attempts return empty results
+      mockCallDiscoverFilter.mockResolvedValue({
+        results: [],
+        pagination: { page: 1, limit: 10, hasNext: false, hasPrev: false },
+        filters: { intentIds: null, userIds: null, indexIds: null, sources: null, excludeDiscovered: true },
+      });
+
+      const result = await discoverConnectionsFromText({
+        oauthToken: 'oauth-token',
+        fullInputText: 'Test input',
+        maxConnections: 10,
+      });
+
+      // Should have attempted polling multiple times
+      expect(mockCallDiscoverFilter.mock.calls.length).toBeGreaterThanOrEqual(2);
+      // Should return empty connections
+      expect(result.connections.length).toBe(0);
+      expect(result.intents.length).toBe(1);
+      // Vibecheck should not be called
+      expect(mockCallVibecheck).not.toHaveBeenCalled();
+    });
+
+    it('recovers from transient errors during polling', async () => {
+      mockCallDiscoverNew.mockResolvedValue({
+        intents: [{ id: 'intent-1', payload: 'Test', createdAt: '2024-01-01T00:00:00Z' }],
+        filesProcessed: 0,
+        linksProcessed: 0,
+        intentsGenerated: 1,
+      });
+
+      // First call fails, second call succeeds with results
+      mockCallDiscoverFilter
+        .mockRejectedValueOnce(new Error('Transient error'))
+        .mockResolvedValueOnce({
+          results: [
+            {
+              user: { id: 'user-1', name: 'Alice', email: null, avatar: null, intro: null },
+              totalStake: 100,
+              intents: [],
+            },
+          ],
+          pagination: { page: 1, limit: 10, hasNext: false, hasPrev: false },
+          filters: { intentIds: null, userIds: null, indexIds: null, sources: null, excludeDiscovered: true },
+        });
+
+      mockCallVibecheck.mockResolvedValue({
+        synthesis: 'Alice synthesis',
+        targetUserId: 'user-1',
+        contextUserId: 'context',
+      });
+
+      const result = await discoverConnectionsFromText({
+        oauthToken: 'oauth-token',
+        fullInputText: 'Test input',
+        maxConnections: 10,
+      });
+
+      // Should have recovered and returned the connection
+      expect(result.connections.length).toBe(1);
+      expect(result.connections[0].user.name).toBe('Alice');
     });
   });
 
