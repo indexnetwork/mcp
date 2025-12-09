@@ -73,10 +73,73 @@ cp .env.example .env
 # - PRIVY_APP_SECRET (from Privy dashboard)
 # - JWT_PRIVATE_KEY (from step 3)
 # - JWT_PUBLIC_KEY (from step 3)
-# - BACKEND_API_URL (your existing backend)
+# - PROTOCOL_API_URL (your existing backend)
+# - DATABASE_URL (optional - for production auth persistence)
+# - AUTH_STORAGE_DRIVER (memory or postgres)
 ```
 
-### 5. Build & Run
+### 5. Set Up Auth Database (Production)
+
+For production deployments, you need a PostgreSQL database to persist OAuth clients, tokens, and sessions across server restarts.
+
+#### Option A: In-Memory (Development Only)
+```bash
+# In .env - no database needed, but data is lost on restart
+AUTH_STORAGE_DRIVER=memory
+```
+
+#### Option B: PostgreSQL (Production)
+```bash
+# In .env
+AUTH_STORAGE_DRIVER=postgres
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require
+```
+
+Then create the required tables in your database:
+
+```sql
+-- OAuth clients (DCR-registered clients like ChatGPT)
+CREATE TABLE oauth_clients (
+  id TEXT PRIMARY KEY,
+  client_name TEXT,
+  redirect_uris TEXT[] NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Refresh tokens (30-day lifetime)
+CREATE TABLE oauth_refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  privy_user_id TEXT NOT NULL,
+  scopes TEXT[] NOT NULL,
+  privy_access_token TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX oauth_refresh_tokens_token_idx ON oauth_refresh_tokens (token);
+CREATE INDEX oauth_refresh_tokens_user_client_idx ON oauth_refresh_tokens (privy_user_id, client_id);
+
+-- Access token sessions (for /token/privy/access-token endpoint)
+CREATE TABLE oauth_access_token_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  jti TEXT NOT NULL UNIQUE,
+  client_id TEXT NOT NULL,
+  privy_user_id TEXT NOT NULL,
+  scopes TEXT[] NOT NULL,
+  privy_access_token TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX oauth_access_token_sessions_jti_idx ON oauth_access_token_sessions (jti);
+```
+
+**Note**: The static `chatgpt-connector` client is automatically registered on server startup. DCR-generated clients (like `client_xxx`) are persisted and survive restarts.
+
+### 6. Build & Run
 
 **IMPORTANT**: Widgets must be built before starting the server!
 

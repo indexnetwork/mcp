@@ -13,6 +13,7 @@ import { authorizeRouter } from './oauth/authorize.js';
 import { tokenRouter } from './oauth/token.js';
 import { mcpRouter } from './mcp/handlers.js';
 import { initializeMCPServer } from './mcp/server.js';
+import { getRepositories } from './oauth/repositories/index.js';
 import path from 'path';
 
 const app = express();
@@ -33,6 +34,19 @@ if (!isProduction) {
 // Initialize MCP server (loads widgets)
 console.log('🚀 Starting server...\n');
 await initializeMCPServer();
+
+// Bootstrap static OAuth client (chatgpt-connector)
+// This ensures the static client is always available, even after restarts with postgres storage
+const repos = getRepositories();
+await repos.clients.create({
+  id: 'chatgpt-connector',
+  clientName: 'ChatGPT Connector',
+  redirectUris: [
+    'https://chat.openai.com/connector_platform_oauth_redirect',
+    'https://chatgpt.com/connector_platform_oauth_redirect',
+  ],
+});
+console.log('✓ Registered static OAuth client: chatgpt-connector');
 
 // Health check
 app.get('/health', (req, res) => {

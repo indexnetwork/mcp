@@ -5,20 +5,21 @@
 
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config.js';
-import {
-  getAuthorizationCode,
-  deleteAuthorizationCode,
-  validatePKCE,
-  storeRefreshToken,
-  getRefreshToken,
-  deleteRefreshToken,
-  getToken,
-  storeToken,
-} from './storage.js';
+import { validatePKCE } from './storage.js';
+import { getRepositories } from './repositories/index.js';
 import { validateToken } from '../middleware/auth.js';
 
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Generate secure random token
+function generateSecureToken(): string {
+  const array = new Uint8Array(48);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
 
 export const tokenRouter = Router();
 
@@ -74,8 +75,10 @@ async function handleAuthorizationCodeGrant(req: Request, res: Response) {
     });
   }
 
-  // Retrieve authorization code
-  const authCode = getAuthorizationCode(code);
+  const repos = getRepositories();
+
+  // Retrieve authorization code from repository
+  const authCode = await repos.authorizationCodes.findByCode(code);
   if (!authCode) {
     return res.status(400).json({
       error: 'invalid_grant',
@@ -92,8 +95,8 @@ async function handleAuthorizationCodeGrant(req: Request, res: Response) {
   }
 
   // Check if code has expired
-  if (authCode.expiresAt < Date.now()) {
-    deleteAuthorizationCode(code);
+  if (authCode.expiresAt < new Date()) {
+    await repos.authorizationCodes.delete(code);
     return res.status(400).json({
       error: 'invalid_grant',
       error_description: 'Authorization code has expired',
@@ -125,38 +128,49 @@ async function handleAuthorizationCodeGrant(req: Request, res: Response) {
   }
 
   // Delete the authorization code (single use only)
-  deleteAuthorizationCode(code);
+  await repos.authorizationCodes.delete(code);
 
   const audience = resource || config.server.baseUrl;
 
-  const { accessToken, privyToken, expiresIn } = issueAccessToken({
+  // Generate unique IDs for this issuance
+  const accessJti = uuidv4();
+  const refreshTokenValue = generateSecureToken();
+
+  const { accessToken, expiresIn } = issueAccessToken({
+    jti: accessJti,
     privyUserId: authCode.privyUserId,
-    privyToken: authCode.privyToken,  // Pass through the Privy token
     scopes: authCode.scopes,
     clientId: client_id,
     audience,
   });
 
-  // Store the access token with associated Privy token
-  storeToken(accessToken, {
+  const now = new Date();
+  const accessExpiresAt = new Date(now.getTime() + ACCESS_TOKEN_TTL_MS);
+  const refreshExpiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
+
+  // Store access token session for /token/privy/access-token lookups
+  await repos.accessTokenSessions.create({
+    jti: accessJti,
     clientId: client_id,
     privyUserId: authCode.privyUserId,
-    privyToken,
+    privyAccessToken: authCode.privyToken,
     scopes: authCode.scopes,
-    expiresAt: Date.now() + (expiresIn * 1000),
+    expiresAt: accessExpiresAt,
   });
 
-  const refreshToken = storeRefreshToken({
+  // Store refresh token
+  await repos.refreshTokens.create({
+    token: refreshTokenValue,
     clientId: client_id,
     privyUserId: authCode.privyUserId,
-    privyToken: authCode.privyToken,  // Store for refresh token flow
+    privyAccessToken: authCode.privyToken,
     scopes: authCode.scopes,
-    expiresAt: Date.now() + REFRESH_TOKEN_TTL_MS,
+    expiresAt: refreshExpiresAt,
   });
 
   return res.json({
     access_token: accessToken,
-    refresh_token: refreshToken,
+    refresh_token: refreshTokenValue,
     token_type: 'Bearer',
     expires_in: expiresIn,
     scope: authCode.scopes.join(' '),
@@ -173,7 +187,10 @@ async function handleRefreshTokenGrant(req: Request, res: Response) {
     });
   }
 
-  const storedRefreshToken = getRefreshToken(refresh_token);
+  const repos = getRepositories();
+
+  // Find the refresh token in the repository
+  const storedRefreshToken = await repos.refreshTokens.findByToken(refresh_token);
   if (!storedRefreshToken) {
     return res.status(400).json({
       error: 'invalid_grant',
@@ -181,6 +198,7 @@ async function handleRefreshTokenGrant(req: Request, res: Response) {
     });
   }
 
+  // Check client_id matches
   if (storedRefreshToken.clientId !== client_id) {
     return res.status(400).json({
       error: 'invalid_grant',
@@ -188,45 +206,72 @@ async function handleRefreshTokenGrant(req: Request, res: Response) {
     });
   }
 
-  if (storedRefreshToken.expiresAt < Date.now()) {
-    deleteRefreshToken(refresh_token);
+  // Check if revoked
+  if (storedRefreshToken.revokedAt !== null) {
+    return res.status(400).json({
+      error: 'invalid_grant',
+      error_description: 'refresh_token has been revoked',
+    });
+  }
+
+  // Check if expired
+  if (storedRefreshToken.expiresAt < new Date()) {
+    // Clean up the expired token
+    await repos.refreshTokens.revokeByToken(refresh_token);
     return res.status(400).json({
       error: 'invalid_grant',
       error_description: 'refresh_token has expired',
     });
   }
 
-  // Rotate refresh token
-  deleteRefreshToken(refresh_token);
-  const newRefreshToken = storeRefreshToken({
+  // Rotate refresh token: delete old and create new
+  // Both in-memory and postgres repos have deleteByToken method
+  const refreshRepo = repos.refreshTokens as any;
+  if (typeof refreshRepo.deleteByToken === 'function') {
+    await refreshRepo.deleteByToken(refresh_token);
+  } else {
+    await repos.refreshTokens.revokeByToken(refresh_token);
+  }
+
+  const newRefreshTokenValue = generateSecureToken();
+  const now = new Date();
+  const refreshExpiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
+
+  await repos.refreshTokens.create({
+    token: newRefreshTokenValue,
     clientId: storedRefreshToken.clientId,
     privyUserId: storedRefreshToken.privyUserId,
-    privyToken: storedRefreshToken.privyToken,  // Carry forward the Privy token
+    privyAccessToken: storedRefreshToken.privyAccessToken,
     scopes: storedRefreshToken.scopes,
-    expiresAt: Date.now() + REFRESH_TOKEN_TTL_MS,
+    expiresAt: refreshExpiresAt,
   });
 
   const audience = resource || config.server.baseUrl;
-  const { accessToken, privyToken, expiresIn } = issueAccessToken({
+  const accessJti = uuidv4();
+
+  const { accessToken, expiresIn } = issueAccessToken({
+    jti: accessJti,
     privyUserId: storedRefreshToken.privyUserId,
-    privyToken: storedRefreshToken.privyToken,  // Pass through the Privy token
     scopes: storedRefreshToken.scopes,
     clientId: storedRefreshToken.clientId,
     audience,
   });
 
-  // Store the new access token with associated Privy token
-  storeToken(accessToken, {
+  const accessExpiresAt = new Date(now.getTime() + ACCESS_TOKEN_TTL_MS);
+
+  // Store new access token session
+  await repos.accessTokenSessions.create({
+    jti: accessJti,
     clientId: storedRefreshToken.clientId,
     privyUserId: storedRefreshToken.privyUserId,
-    privyToken,
+    privyAccessToken: storedRefreshToken.privyAccessToken,
     scopes: storedRefreshToken.scopes,
-    expiresAt: Date.now() + (expiresIn * 1000),
+    expiresAt: accessExpiresAt,
   });
 
   return res.json({
     access_token: accessToken,
-    refresh_token: newRefreshToken,
+    refresh_token: newRefreshTokenValue,
     token_type: 'Bearer',
     expires_in: expiresIn,
     scope: storedRefreshToken.scopes.join(' '),
@@ -234,20 +279,21 @@ async function handleRefreshTokenGrant(req: Request, res: Response) {
 }
 
 function issueAccessToken({
+  jti,
   privyUserId,
-  privyToken,
   scopes,
   clientId,
   audience,
 }: {
+  jti: string;
   privyUserId: string;
-  privyToken: string;
   scopes: string[];
   clientId: string;
   audience: string;
 }) {
   const accessToken = jwt.sign(
     {
+      jti, // Add JWT ID for session lookup
       sub: privyUserId,
       scope: scopes.join(' '),
       aud: audience,
@@ -269,7 +315,6 @@ function issueAccessToken({
 
   return {
     accessToken,
-    privyToken,  // Return so we can store it
     expiresIn: expiresInSeconds,
   };
 }
@@ -303,6 +348,7 @@ tokenRouter.post('/introspect', async (req, res) => {
       iat: decoded.iat,
       iss: decoded.iss,
       aud: decoded.aud,
+      jti: decoded.jti,
     });
   } catch (error) {
     // Token is invalid or expired
@@ -318,45 +364,62 @@ tokenRouter.post('/introspect', async (req, res) => {
  * Used by MCP tools to exchange their OAuth access token for the original Privy token
  * that was provided during the authorization flow. This allows tools to call the Protocol API.
  *
- * Following the ../mcp pattern:
- * 1. Validates the OAuth access token and checks for 'privy:token:exchange' scope
- * 2. Looks up the stored token record to find the associated Privy token
- * 3. Returns the Privy token with metadata
+ * Now uses the jti claim to look up the session in the repository instead of the full token string.
  */
 tokenRouter.post('/privy/access-token', validateToken(['privy:token:exchange']), async (req, res) => {
   try {
     console.log('[privy/access-token] Received exchange request');
 
-    // The validateToken middleware has already verified the token and attached req.auth
-    const oauthToken = req.auth?.token;
-    console.log('[privy/access-token] OAuth token from auth:', oauthToken ? `${oauthToken.slice(0, 8)}...${oauthToken.slice(-8)}` : 'MISSING');
-    console.log('[privy/access-token] Required scopes:', req.auth?.scopes);
+    const decoded = req.auth?.decoded;
+    const jti = decoded?.jti;
 
-    if (!oauthToken) {
-      console.error('[privy/access-token] No OAuth token in request');
-      return res.status(401).json({ error: 'unauthorized' });
+    if (!jti) {
+      console.error('[privy/access-token] No jti in token');
+      return res.status(400).json({
+        error: 'invalid_token',
+        error_description: 'Token missing jti claim',
+      });
     }
 
-    // Look up the stored token data to get the Privy token
-    const tokenData = getToken(oauthToken);
-    console.log('[privy/access-token] Token lookup result:', tokenData ? 'FOUND' : 'NOT FOUND');
+    console.log('[privy/access-token] Looking up session by jti:', jti.slice(0, 8) + '...');
 
-    if (!tokenData) {
-      console.error('[privy/access-token] Token not found in storage');
+    const repos = getRepositories();
+    const session = await repos.accessTokenSessions.findByJti(jti);
+
+    if (!session) {
+      console.error('[privy/access-token] Session not found for jti');
       return res.status(404).json({ error: 'token_not_found' });
     }
 
+    // Sanity check: user ID should match
+    if (session.privyUserId !== decoded.sub) {
+      console.error('[privy/access-token] User ID mismatch');
+      return res.status(400).json({
+        error: 'invalid_token',
+        error_description: 'Token user mismatch',
+      });
+    }
+
+    // Check if session is expired
+    if (session.expiresAt < new Date()) {
+      console.error('[privy/access-token] Session expired');
+      return res.status(400).json({
+        error: 'invalid_token',
+        error_description: 'Session expired',
+      });
+    }
+
     // Log for debugging (only show preview of token)
-    const preview = `${tokenData.privyToken.slice(0, 4)}...${tokenData.privyToken.slice(-4)}`;
+    const preview = `${session.privyAccessToken.slice(0, 4)}...${session.privyAccessToken.slice(-4)}`;
     console.log('[privy/access-token] Exchanging token for Privy bearer', preview);
 
     // Return the Privy token with metadata
     return res.json({
-      privyAccessToken: tokenData.privyToken,
-      expiresAt: tokenData.expiresAt,
-      issuedAt: null,  // We don't track issuedAt separately
-      userId: tokenData.privyUserId,
-      scope: tokenData.scopes,
+      privyAccessToken: session.privyAccessToken,
+      expiresAt: session.expiresAt.getTime(),
+      issuedAt: session.createdAt.getTime(),
+      userId: session.privyUserId,
+      scope: session.scopes,
     });
   } catch (error) {
     console.error('[privy/access-token] Error:', error);
