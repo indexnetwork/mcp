@@ -142,6 +142,12 @@ export async function callDiscoverNew(
   const apiUrl = `${config.intentExtraction.protocolApiUrl}/discover/new`;
   console.log('[callDiscoverNew] Calling Protocol API:', apiUrl);
 
+  const tokenPreview =
+    typeof privyToken === 'string' && privyToken.length > 10
+      ? `${privyToken.slice(0, 10)}...`
+      : '<invalid-token>';
+  console.debug(`[callDiscoverNew] Using Privy bearer token (truncated): ${tokenPreview}`);
+
   const formData = new FormData();
   formData.append('payload', payload.text);
 
@@ -156,7 +162,7 @@ export async function callDiscoverNew(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
-    console.error(`[callDiscoverNew] Protocol API error: ${response.status}`);
+    console.error(`[callDiscoverNew] Protocol API error: ${response.status} body=${errorText}`);
     throw new Error(`discover/new failed: ${response.status}`);
   }
 
