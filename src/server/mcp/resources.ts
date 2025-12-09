@@ -11,6 +11,7 @@ import {
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { WIDGETS } from './widgetConfig.js';
+import { config } from '../config.js';
 
 // Widget registry to store loaded widgets (just metadata, files served via HTTP)
 const widgetRegistry = new Map<string, { name: string; description: string }>();
@@ -126,7 +127,7 @@ async function loadWidget(
  * The widget JS will automatically import its dependencies via ES modules
  */
 function createWidgetHTML(title: string, widgetFileName: string): string {
-  const baseUrl = process.env.MCP_SERVER_URL || 'http://localhost:3002';
+  const baseUrl = config.server.baseUrl || 'http://localhost:3002';
 
   return `
 <!DOCTYPE html>
