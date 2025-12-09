@@ -175,7 +175,7 @@ async function handleExtractIntent(args: any, auth: any) {
     return {
       content: [{
         type: 'text',
-        text: `Extracted ${data.intentsGenerated} intent(s)`,
+        text: 'Showing extracted intents in the widget below.',
       }],
       structuredContent: {
         intents: data.intents,
@@ -277,19 +277,19 @@ async function handleDiscoverConnections(args: any, auth: any) {
       maxConnections: maxConnections ?? 10,
     });
 
-    // 4. Generate summary text
-    const summaryText =
+    // 4. Generate invoked message for status display
+    const invokedText =
       connections.length === 0
-        ? 'No connections found.'
+        ? 'No connections found'
         : connections.length === 1
-          ? 'Found 1 potential connection.'
-          : `Found ${connections.length} potential connections.`;
+          ? 'Found 1 potential connection'
+          : `Found ${connections.length} potential connections`;
 
     // 5. Return structured response for widget
     return {
       content: [{
         type: 'text',
-        text: summaryText,
+        text: 'Showing discovered connections in the widget below.',
       }],
       structuredContent: {
         connections,
@@ -297,7 +297,7 @@ async function handleDiscoverConnections(args: any, auth: any) {
         connectionsFound: connections.length,
       },
       _meta: {
-        'openai/toolInvocation/invoked': summaryText,
+        'openai/toolInvocation/invoked': invokedText,
       },
     };
   } catch (error) {

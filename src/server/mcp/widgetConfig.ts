@@ -19,8 +19,7 @@ export interface WidgetConfig {
     resultCanProduceWidget: boolean;
   };
   resourceMeta?: {
-    // Resource-specific metadata (if any)
-    // Currently all widgets use tool-level metadata only
+    'openai/widgetDescription'?: string; // Model-only guidance to reduce redundant narration
   };
 }
 
@@ -38,6 +37,9 @@ export const WIDGETS: Record<WidgetKey, WidgetConfig> = {
       widgetAccessible: true,
       resultCanProduceWidget: true,
     },
+    resourceMeta: {
+      'openai/widgetDescription': 'This widget fully renders the extracted intents and their details. Do not repeat or re-list the intents in your follow-up message. Instead, respond with one very short sentence suggesting what the user could do next with these intents.',
+    },
   },
   'discover-connections': {
     key: 'discover-connections',
@@ -51,6 +53,9 @@ export const WIDGETS: Record<WidgetKey, WidgetConfig> = {
       invoked: 'Found potential connections',
       widgetAccessible: true,
       resultCanProduceWidget: true,
+    },
+    resourceMeta: {
+      'openai/widgetDescription': 'This widget fully renders the discovered connections and their summaries. Do not repeat or re-list the connections in your follow-up message. Instead, respond with one very short sentence suggesting what the user could do next with these connections.',
     },
   },
 };
