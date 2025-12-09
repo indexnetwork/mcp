@@ -85,6 +85,16 @@ export const config = {
     initialDelayMs: Number(process.env.DISCOVER_FILTER_INITIAL_DELAY_MS ?? '2000'),
     maxTotalWaitMs: Number(process.env.DISCOVER_FILTER_MAX_TOTAL_WAIT_MS ?? '30000'),
   },
+
+  // Auth storage configuration
+  authStorage: {
+    driver: (process.env.AUTH_STORAGE_DRIVER ?? 'memory') as 'memory' | 'postgres',
+  },
+
+  // Database configuration
+  database: {
+    url: process.env.DATABASE_URL ?? null,
+  },
 } as const;
 
 // Helper to check if we're in production

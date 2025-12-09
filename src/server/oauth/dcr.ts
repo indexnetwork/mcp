@@ -6,9 +6,10 @@
  */
 
 import { Request, Response } from 'express';
-import { registerClient } from './storage.js';
+import { v4 as uuidv4 } from 'uuid';
+import { getRepositories } from './repositories/index.js';
 
-export function handleDynamicClientRegistration(req: Request, res: Response) {
+export async function handleDynamicClientRegistration(req: Request, res: Response) {
   try {
     const {
       redirect_uris,
@@ -75,13 +76,19 @@ export function handleDynamicClientRegistration(req: Request, res: Response) {
       }
     }
 
-    // Register the client
-    const client = registerClient(redirect_uris);
+    // Register the client via repository
+    const repos = getRepositories();
+    const clientId = `client_${uuidv4()}`;
+    const client = await repos.clients.create({
+      id: clientId,
+      clientName: client_name,
+      redirectUris: redirect_uris,
+    });
 
     // Build response according to RFC 7591
     const response: Record<string, any> = {
-      client_id: client.clientId,
-      client_id_issued_at: Math.floor(client.registeredAt / 1000),
+      client_id: client.id,
+      client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
       redirect_uris: client.redirectUris,
       grant_types: requestedGrantTypes.filter((grant: string) => supportedGrantTypes.includes(grant)),
       response_types: requestedResponseTypes,
