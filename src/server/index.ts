@@ -5,7 +5,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import ViteExpress from 'vite-express';
 import { config, isProduction } from './config.js';
 import { wellKnownRouter } from './oauth/wellknown.js';
 import { handleDynamicClientRegistration } from './oauth/dcr.js';
@@ -152,7 +151,9 @@ if (isProduction) {
     `);
   });
 } else {
-  // Development: use vite-express for HMR
+  // Development: use vite-express for HMR (dynamic import to avoid requiring it in production)
+  const ViteExpress = (await import('vite-express')).default;
+
   ViteExpress.config({
     mode: 'development',
     viteConfigFile: path.join(process.cwd(), 'src/client/vite.config.ts'),
