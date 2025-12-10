@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json bun.lockb* ./
 
 # Install all dependencies (including dev dependencies for building)
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --dev
 
 # Copy source code
 COPY . .
@@ -25,8 +25,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json bun.lockb* ./
 
-# Install production dependencies only
-RUN bun install --production --frozen-lockfile
+# Install all dependencies (vite-express is imported even though only used in dev)
+RUN bun install --frozen-lockfile
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
