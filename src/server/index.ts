@@ -47,15 +47,6 @@ await repos.clients.create({
 });
 console.log('✓ Registered static OAuth client: chatgpt-connector');
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: config.server.nodeEnv,
-  });
-});
-
 // Root landing page (unauthenticated) so external health checks don't see 403s
 app.get('/', (req, res) => {
   res.send(`
@@ -64,13 +55,23 @@ app.get('/', (req, res) => {
       <body style="font-family: sans-serif;">
         <h1>ChatGPT OAuth Bridge</h1>
         <p>The server is running. Use /mcp/authorize for OAuth and /mcp for MCP.</p>
+        <p>Health check: <a href="/mcp/health">/mcp/health</a></p>
       </body>
     </html>
   `);
 });
 
+// Health check
+app.get('/mcp/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: config.server.nodeEnv,
+  });
+});
+
 // Serve widget assets (JS/CSS files)
-app.use('/widgets', express.static(path.join(process.cwd(), 'dist/widgets'), {
+app.use('/mcp/widgets', express.static(path.join(process.cwd(), 'dist/widgets'), {
   setHeaders(res) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     // Set correct MIME types
@@ -79,7 +80,7 @@ app.use('/widgets', express.static(path.join(process.cwd(), 'dist/widgets'), {
 }));
 
 // Serve favicon
-app.get(['/favicon.ico', '/favicon.png', '/favicon.svg'], (_req, res) => {
+app.get(['/mcp/favicon.ico', '/mcp/favicon.png', '/mcp/favicon.svg'], (_req, res) => {
   const faviconPath = path.join(process.cwd(), 'public/favicon.svg');
 
   // Check if favicon exists
@@ -139,7 +140,7 @@ if (isProduction) {
 ║  Endpoints:                                ║
 ║  • MCP:     /mcp                           ║
 ║  • OAuth:   /mcp/authorize, /mcp/token     ║
-║  • Health:  /health                        ║
+║  • Health:  /mcp/health                    ║
 ╚════════════════════════════════════════════╝
     `);
   });
@@ -163,7 +164,7 @@ if (isProduction) {
 ║  • OAuth UI:  http://localhost:${config.server.port}/mcp/authorize    ║
 ║  • MCP:       http://localhost:${config.server.port}/mcp          ║
 ║  • Token:     http://localhost:${config.server.port}/mcp/token        ║
-║  • Health:    http://localhost:${config.server.port}/health       ║
+║  • Health:    http://localhost:${config.server.port}/mcp/health       ║
 ║                                            ║
 ║  OAuth Discovery:                          ║
 ║  • /mcp/.well-known/oauth-authorization-server ║
