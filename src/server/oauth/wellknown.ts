@@ -1,5 +1,5 @@
 /**
- * OAuth2 discovery endpoints (/.well-known/*)
+ * OAuth2 discovery endpoints (/mcp/.well-known/*)
  * These endpoints provide metadata about the authorization server
  */
 

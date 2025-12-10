@@ -63,7 +63,7 @@ app.get('/', (req, res) => {
       <head><title>ChatGPT OAuth Bridge</title></head>
       <body style="font-family: sans-serif;">
         <h1>ChatGPT OAuth Bridge</h1>
-        <p>The server is running. Use /authorize for OAuth and /mcp for MCP.</p>
+        <p>The server is running. Use /mcp/authorize for OAuth and /mcp for MCP.</p>
       </body>
     </html>
   `);
@@ -92,23 +92,19 @@ app.get(['/favicon.ico', '/favicon.png', '/favicon.svg'], (_req, res) => {
   }
 });
 
-// OAuth2 Discovery Endpoints (/.well-known/*)
-app.use('/.well-known', wellKnownRouter);
-// Mirror discovery endpoints under /mcp/.well-known for clients that scope metadata per resource path
+// OAuth2 Discovery Endpoints
 app.use('/mcp/.well-known', wellKnownRouter);
-// Mirror discovery endpoints under /token/.well-known for clients that expect token endpoint metadata
-app.use('/token/.well-known', wellKnownRouter);
 
 // OAuth2 Dynamic Client Registration
-app.post('/register', handleDynamicClientRegistration);
+app.post('/mcp/register', handleDynamicClientRegistration);
 
 // OAuth2 Authorization Endpoint
-// GET /authorize serves the React UI (handled by vite-express)
-// POST /authorize receives consent from the frontend
-app.use('/authorize', authorizeRouter);
+// GET /mcp/authorize serves the React UI (handled by vite-express)
+// POST /mcp/authorize receives consent from the frontend
+app.use('/mcp/authorize', authorizeRouter);
 
 // OAuth2 Token Endpoint
-app.use('/token', tokenRouter);
+app.use('/mcp/token', tokenRouter);
 
 // MCP Endpoints (requires OAuth authentication)
 app.use('/mcp', mcpRouter);
@@ -124,9 +120,6 @@ if (isProduction) {
     // Don't serve index.html for API routes
     if (
       req.path.startsWith('/mcp') ||
-      req.path.startsWith('/authorize') ||
-      req.path.startsWith('/token') ||
-      req.path.startsWith('/.well-known') ||
       req.path.startsWith('/api')
     ) {
       return res.status(404).json({ error: 'Not found' });
@@ -145,7 +138,7 @@ if (isProduction) {
 ║                                            ║
 ║  Endpoints:                                ║
 ║  • MCP:     /mcp                           ║
-║  • OAuth:   /authorize, /token             ║
+║  • OAuth:   /mcp/authorize, /mcp/token     ║
 ║  • Health:  /health                        ║
 ╚════════════════════════════════════════════╝
     `);
@@ -167,14 +160,14 @@ if (isProduction) {
 ║  Server:    http://localhost:${config.server.port.toString().padEnd(19)} ║
 ║                                            ║
 ║  Endpoints:                                ║
-║  • OAuth UI:  http://localhost:${config.server.port}/authorize    ║
+║  • OAuth UI:  http://localhost:${config.server.port}/mcp/authorize    ║
 ║  • MCP:       http://localhost:${config.server.port}/mcp          ║
-║  • Token:     http://localhost:${config.server.port}/token        ║
+║  • Token:     http://localhost:${config.server.port}/mcp/token        ║
 ║  • Health:    http://localhost:${config.server.port}/health       ║
 ║                                            ║
 ║  OAuth Discovery:                          ║
-║  • /.well-known/oauth-authorization-server ║
-║  • /.well-known/oauth-protected-resource   ║
+║  • /mcp/.well-known/oauth-authorization-server ║
+║  • /mcp/.well-known/oauth-protected-resource   ║
 ╠════════════════════════════════════════════╣
 ║  📝 Note: Build widgets first:             ║
 ║     bun run build:widgets                  ║

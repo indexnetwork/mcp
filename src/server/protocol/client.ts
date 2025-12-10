@@ -119,7 +119,7 @@ export async function exchangePrivyToken(
   const tokenPreview = `${oauthToken.slice(0, 8)}...${oauthToken.slice(-8)}`;
   console.log(`[exchangePrivyToken] Exchanging OAuth token ${tokenPreview}`);
 
-  const response = await fetch(`${config.server.baseUrl}/token/privy/access-token`, {
+  const response = await fetch(`${config.server.baseUrl}/mcp/token/privy/access-token`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${oauthToken}`,
