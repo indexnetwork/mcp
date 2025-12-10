@@ -139,6 +139,18 @@ export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
     }
   }
 
+  async revokeAllForUser(clientId: string, privyUserId: string, when: Date): Promise<void> {
+    for (const record of this.tokens.values()) {
+      if (
+        record.clientId === clientId &&
+        record.privyUserId === privyUserId &&
+        record.revokedAt === null
+      ) {
+        record.revokedAt = when;
+      }
+    }
+  }
+
   async cleanupExpired(now: Date = new Date()): Promise<void> {
     for (const [token, record] of this.tokens.entries()) {
       if (record.expiresAt < now || record.revokedAt !== null) {
@@ -183,6 +195,13 @@ export class InMemoryAccessTokenSessionRepository implements AccessTokenSessionR
       if (record.expiresAt < now) {
         this.sessions.delete(jti);
       }
+    }
+  }
+
+  async markPrivyInvalid(jti: string, when: Date): Promise<void> {
+    const session = this.sessions.get(jti);
+    if (session) {
+      session.privyInvalidAt = when;
     }
   }
 }

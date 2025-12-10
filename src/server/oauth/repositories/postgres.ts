@@ -34,7 +34,8 @@
  *   scopes TEXT[] NOT NULL,
  *   privy_access_token TEXT NOT NULL,
  *   expires_at TIMESTAMPTZ NOT NULL,
- *   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+ *   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ *   privy_invalid_at TIMESTAMPTZ  -- Set when privy token is known to be invalid/expired
  * );
  *
  * CREATE INDEX oauth_access_token_sessions_jti_idx ON oauth_access_token_sessions (jti);
@@ -216,6 +217,17 @@ export class PostgresRefreshTokenRepository implements RefreshTokenRepository {
     );
   }
 
+  async revokeAllForUser(clientId: string, privyUserId: string, when: Date): Promise<void> {
+    await query(
+      `UPDATE oauth_refresh_tokens
+       SET revoked_at = $3
+       WHERE client_id = $1
+         AND privy_user_id = $2
+         AND revoked_at IS NULL`,
+      [clientId, privyUserId, when]
+    );
+  }
+
   async cleanupExpired(now: Date = new Date()): Promise<void> {
     await query(
       `DELETE FROM oauth_refresh_tokens
@@ -281,8 +293,9 @@ export class PostgresAccessTokenSessionRepository implements AccessTokenSessionR
       privy_access_token: string;
       expires_at: Date;
       created_at: Date;
+      privy_invalid_at: Date | null;
     }>(
-      `SELECT id, jti, client_id, privy_user_id, scopes, privy_access_token, expires_at, created_at
+      `SELECT id, jti, client_id, privy_user_id, scopes, privy_access_token, expires_at, created_at, privy_invalid_at
        FROM oauth_access_token_sessions
        WHERE jti = $1
        LIMIT 1`,
@@ -300,6 +313,7 @@ export class PostgresAccessTokenSessionRepository implements AccessTokenSessionR
       privyAccessToken: row.privy_access_token,
       expiresAt: row.expires_at,
       createdAt: row.created_at,
+      privyInvalidAt: row.privy_invalid_at,
     };
   }
 
@@ -316,6 +330,15 @@ export class PostgresAccessTokenSessionRepository implements AccessTokenSessionR
       `DELETE FROM oauth_access_token_sessions
        WHERE expires_at < $1`,
       [now]
+    );
+  }
+
+  async markPrivyInvalid(jti: string, when: Date): Promise<void> {
+    await query(
+      `UPDATE oauth_access_token_sessions
+       SET privy_invalid_at = $1
+       WHERE jti = $2`,
+      [when, jti]
     );
   }
 }

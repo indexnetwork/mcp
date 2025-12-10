@@ -409,6 +409,19 @@ tokenRouter.post('/privy/access-token', validateToken(['privy:token:exchange']),
       });
     }
 
+    // Check if privy token has been marked as invalid
+    if (session.privyInvalidAt) {
+      console.error('[privy/access-token] Privy token marked invalid at:', session.privyInvalidAt);
+      const resourceMetadata = `${config.server.baseUrl}/.well-known/oauth-protected-resource`;
+      return res
+        .status(401)
+        .setHeader(
+          'WWW-Authenticate',
+          `Bearer resource_metadata="${resourceMetadata}", error="invalid_token", error_description="Your connection has expired. Please sign in again."`,
+        )
+        .json({ error: 'privy_token_invalid' });
+    }
+
     // Log for debugging (only show preview of token)
     const preview = `${session.privyAccessToken.slice(0, 4)}...${session.privyAccessToken.slice(-4)}`;
     console.log('[privy/access-token] Exchanging token for Privy bearer', preview);

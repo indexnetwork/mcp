@@ -11,8 +11,30 @@ import {
 import { z } from 'zod';
 import { config } from '../config.js';
 import { discoverConnectionsFromText } from './discoverConnections.js';
-import { exchangePrivyToken, callDiscoverNew } from '../protocol/client.js';
+import { exchangePrivyToken, callDiscoverNew, PrivyTokenExpiredError } from '../protocol/client.js';
 import { WIDGETS } from './widgetConfig.js';
+import { getRepositories } from '../oauth/repositories/index.js';
+
+/**
+ * Build a reauth error response for tool calls when Privy token is expired
+ */
+function buildPrivyExpiredResponse() {
+  const resourceMetadata = `${config.server.baseUrl}/.well-known/oauth-protected-resource`;
+  return {
+    isError: true,
+    content: [
+      {
+        type: 'text',
+        text: 'Your Index Network connection has expired. Please sign in again to continue.',
+      },
+    ],
+    _meta: {
+      'mcp/www_authenticate': [
+        `Bearer resource_metadata="${resourceMetadata}", error="invalid_token", error_description="Your connection expired. Click to sign in again."`,
+      ],
+    },
+  };
+}
 
 /**
  * Zod schemas for tool input validation
@@ -188,6 +210,46 @@ async function handleExtractIntent(args: any, auth: any) {
       },
     };
   } catch (error) {
+    // Check for expired privy token - trigger reauth
+    if (error instanceof PrivyTokenExpiredError) {
+      console.error('[extract_intent] PrivyTokenExpiredError caught:', error.message);
+      console.log('[extract_intent] Triggering reauth flow for user:', auth?.userId);
+
+      const now = new Date();
+      const jti = auth?.decoded?.jti;
+      const clientId = auth?.decoded?.client_id;
+      const privyUserId = auth?.decoded?.sub;
+
+      // 1) Mark access-token session privy-invalid
+      if (jti) {
+        console.log('[extract_intent] Marking session invalid, jti:', jti);
+        try {
+          const repos = getRepositories();
+          await repos.accessTokenSessions.markPrivyInvalid(jti, now);
+          console.log('[extract_intent] Session marked invalid successfully');
+        } catch (markError) {
+          console.error('[extract_intent] Failed to mark session invalid:', markError);
+        }
+      }
+
+      // 2) Revoke all refresh tokens for this client + user
+      if (clientId && privyUserId) {
+        console.log('[extract_intent] Revoking refresh tokens for client:', clientId, 'user:', privyUserId);
+        try {
+          const repos = getRepositories();
+          await repos.refreshTokens.revokeAllForUser(clientId, privyUserId, now);
+          console.log('[extract_intent] Refresh tokens revoked successfully');
+        } catch (revokeError) {
+          console.error('[extract_intent] Failed to revoke refresh tokens:', revokeError);
+        }
+      }
+
+      // 3) Return reauth response
+      const reauthResponse = buildPrivyExpiredResponse();
+      console.log('[extract_intent] Returning reauth response:', JSON.stringify(reauthResponse));
+      return reauthResponse;
+    }
+
     console.error('Error extracting intents:', error);
     return {
       content: [{
@@ -301,6 +363,46 @@ async function handleDiscoverConnections(args: any, auth: any) {
       },
     };
   } catch (error) {
+    // Check for expired privy token - trigger reauth
+    if (error instanceof PrivyTokenExpiredError) {
+      console.error('[discover_connections] PrivyTokenExpiredError caught:', error.message);
+      console.log('[discover_connections] Triggering reauth flow for user:', auth?.userId);
+
+      const now = new Date();
+      const jti = auth?.decoded?.jti;
+      const clientId = auth?.decoded?.client_id;
+      const privyUserId = auth?.decoded?.sub;
+
+      // 1) Mark access-token session privy-invalid
+      if (jti) {
+        console.log('[discover_connections] Marking session invalid, jti:', jti);
+        try {
+          const repos = getRepositories();
+          await repos.accessTokenSessions.markPrivyInvalid(jti, now);
+          console.log('[discover_connections] Session marked invalid successfully');
+        } catch (markError) {
+          console.error('[discover_connections] Failed to mark session invalid:', markError);
+        }
+      }
+
+      // 2) Revoke all refresh tokens for this client + user
+      if (clientId && privyUserId) {
+        console.log('[discover_connections] Revoking refresh tokens for client:', clientId, 'user:', privyUserId);
+        try {
+          const repos = getRepositories();
+          await repos.refreshTokens.revokeAllForUser(clientId, privyUserId, now);
+          console.log('[discover_connections] Refresh tokens revoked successfully');
+        } catch (revokeError) {
+          console.error('[discover_connections] Failed to revoke refresh tokens:', revokeError);
+        }
+      }
+
+      // 3) Return reauth response
+      const reauthResponse = buildPrivyExpiredResponse();
+      console.log('[discover_connections] Returning reauth response:', JSON.stringify(reauthResponse));
+      return reauthResponse;
+    }
+
     console.error('Error discovering connections:', error);
     return {
       content: [{

@@ -8,6 +8,7 @@ import {
   callDiscoverNew,
   callDiscoverFilter,
   callVibecheck,
+  PrivyTokenExpiredError,
   type DiscoverNewIntent,
   type VibecheckResponse,
 } from '../protocol/client.js';
@@ -111,7 +112,11 @@ async function runVibechecksWithPool(
           synthesis: response.synthesis,
         });
       } catch (error) {
-        // Partial failure tolerance: store empty synthesis on error
+        // Re-throw auth errors - don't swallow them
+        if (error instanceof PrivyTokenExpiredError) {
+          throw error;
+        }
+        // Partial failure tolerance: store empty synthesis on other errors
         console.error(`[runVibechecksWithPool] Vibecheck failed for user ${task.userId}:`, error);
         results.set(task.userId, {
           userId: task.userId,
@@ -214,6 +219,10 @@ export async function discoverConnectionsFromText(
 
       console.log(`[discoverConnectionsFromText] Attempt ${attempt}: no results yet, will retry`);
     } catch (error) {
+      // Re-throw auth errors - don't continue polling
+      if (error instanceof PrivyTokenExpiredError) {
+        throw error;
+      }
       console.error(`[discoverConnectionsFromText] Attempt ${attempt} failed:`, error);
       // Continue polling on transient errors
     }
