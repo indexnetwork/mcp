@@ -7,12 +7,23 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { discoverConnectionsFromText } from '../../src/server/mcp/discoverConnections.js';
 
 // Mock the protocol client module
-vi.mock('../../src/server/protocol/client.js', () => ({
-  exchangePrivyToken: vi.fn(),
-  callDiscoverNew: vi.fn(),
-  callDiscoverFilter: vi.fn(),
-  callVibecheck: vi.fn(),
-}));
+vi.mock('../../src/server/protocol/client.js', () => {
+  // Create PrivyTokenExpiredError class for the mock
+  class PrivyTokenExpiredError extends Error {
+    constructor(message = 'Privy access token is invalid or expired') {
+      super(message);
+      this.name = 'PrivyTokenExpiredError';
+    }
+  }
+
+  return {
+    exchangePrivyToken: vi.fn(),
+    callDiscoverNew: vi.fn(),
+    callDiscoverFilter: vi.fn(),
+    callVibecheck: vi.fn(),
+    PrivyTokenExpiredError,
+  };
+});
 
 // Mock config with fast polling values for tests
 vi.mock('../../src/server/config.js', () => ({

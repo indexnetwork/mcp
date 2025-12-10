@@ -30,6 +30,59 @@ const authorizationCodes = new Map<string, any>();
 const registeredClients = new Map<string, any>();
 const tokens = new Map<string, any>();
 const refreshTokens = new Map<string, any>();
+// Track sessions marked as privy-invalid
+const privyInvalidSessions = new Set<string>();
+
+/**
+ * Revoke all refresh tokens for a given client + user
+ */
+function revokeAllRefreshTokensForUser(clientId: string, privyUserId: string): void {
+  const now = Date.now();
+  for (const [token, data] of refreshTokens.entries()) {
+    if (data.clientId === clientId && data.privyUserId === privyUserId && data.revokedAt === null) {
+      data.revokedAt = now;
+    }
+  }
+}
+
+/**
+ * Helper to detect if an error body indicates expired/invalid privy token
+ */
+function isPrivyTokenExpiredError(status: number, errorBody: string): boolean {
+  if (status !== 401 && status !== 403) return false;
+
+  const lower = errorBody.toLowerCase();
+  return (
+    lower.includes('invalid or expired access token') ||
+    lower.includes('invalid privy token') ||
+    lower.includes('expired privy token')
+  );
+}
+
+/**
+ * Build reauth error response for expired privy tokens
+ */
+function buildPrivyExpiredResponse(id: any, baseUrl: string) {
+  const resourceMetadata = `${baseUrl}/.well-known/oauth-protected-resource`;
+  return {
+    jsonrpc: '2.0',
+    result: {
+      isError: true,
+      content: [
+        {
+          type: 'text',
+          text: 'Your Index Network connection has expired. Please sign in again to continue.',
+        },
+      ],
+      _meta: {
+        'mcp/www_authenticate': [
+          `Bearer resource_metadata="${resourceMetadata}", error="invalid_token", error_description="Your connection expired. Click to sign in again."`,
+        ],
+      },
+    },
+    id: id || null,
+  };
+}
 
 // Initialize static client
 registeredClients.set('chatgpt-connector', {
@@ -302,8 +355,10 @@ export async function startTestServer(options: {
         authorizationCodes.delete(code);
 
         // Issue tokens
+        const jti = randomBytes(16).toString('hex');
         const accessToken = jwt.sign(
           {
+            jti,
             sub: authCode.privyUserId,
             scope: authCode.scopes.join(' '),
             aud: baseUrl,
@@ -323,6 +378,7 @@ export async function startTestServer(options: {
         // Store tokens
         tokens.set(accessToken, {
           accessToken,
+          jti,
           clientId: client_id,
           privyUserId: authCode.privyUserId,
           privyToken: authCode.privyToken,
@@ -337,6 +393,7 @@ export async function startTestServer(options: {
           privyToken: authCode.privyToken,
           scopes: authCode.scopes,
           expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          revokedAt: null,
         });
 
         return res.json({
@@ -373,6 +430,14 @@ export async function startTestServer(options: {
           });
         }
 
+        // Check if revoked
+        if (stored.revokedAt !== null) {
+          return res.status(400).json({
+            error: 'invalid_grant',
+            error_description: 'refresh_token has been revoked',
+          });
+        }
+
         if (stored.expiresAt < Date.now()) {
           refreshTokens.delete(refresh_token);
           return res.status(400).json({
@@ -385,8 +450,10 @@ export async function startTestServer(options: {
         refreshTokens.delete(refresh_token);
 
         const newRefreshToken = generateSecureToken();
+        const jti = randomBytes(16).toString('hex');
         const accessToken = jwt.sign(
           {
+            jti,
             sub: stored.privyUserId,
             scope: stored.scopes.join(' '),
             aud: baseUrl,
@@ -403,6 +470,7 @@ export async function startTestServer(options: {
 
         tokens.set(accessToken, {
           accessToken,
+          jti,
           clientId: stored.clientId,
           privyUserId: stored.privyUserId,
           privyToken: stored.privyToken,
@@ -417,6 +485,7 @@ export async function startTestServer(options: {
           privyToken: stored.privyToken,
           scopes: stored.scopes,
           expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          revokedAt: null,
         });
 
         return res.json({
@@ -470,6 +539,18 @@ export async function startTestServer(options: {
       const tokenData = tokens.get(token);
       if (!tokenData) {
         return res.status(404).json({ error: 'token_not_found' });
+      }
+
+      // Check if session has been marked as privy-invalid
+      if (tokenData.jti && privyInvalidSessions.has(tokenData.jti)) {
+        const resourceMetadata = `${baseUrl}/.well-known/oauth-protected-resource`;
+        return res
+          .status(401)
+          .setHeader(
+            'WWW-Authenticate',
+            `Bearer resource_metadata="${resourceMetadata}", error="invalid_token", error_description="Your connection has expired. Please sign in again."`,
+          )
+          .json({ error: 'privy_token_invalid' });
       }
 
       return res.json({
@@ -590,6 +671,11 @@ export async function startTestServer(options: {
             });
           }
 
+          // Check if session has been marked as privy-invalid (mimic exchangePrivyToken behavior)
+          if (tokenData.jti && privyInvalidSessions.has(tokenData.jti)) {
+            return res.json(buildPrivyExpiredResponse(id, baseUrl));
+          }
+
           // Call Protocol API
           try {
             const apiResponse = await fetch(`${protocolApiUrl}/discover/new`, {
@@ -604,10 +690,22 @@ export async function startTestServer(options: {
 
             if (!apiResponse.ok) {
               const errorText = await apiResponse.text();
+
+              // Check for expired/invalid privy token - trigger graceful reauth
+              if (isPrivyTokenExpiredError(apiResponse.status, errorText)) {
+                // Mark session as privy-invalid
+                if (tokenData.jti) {
+                  privyInvalidSessions.add(tokenData.jti);
+                }
+                // Revoke all refresh tokens for this client+user
+                revokeAllRefreshTokensForUser(tokenData.clientId, tokenData.privyUserId);
+                return res.json(buildPrivyExpiredResponse(id, baseUrl));
+              }
+
               return res.json({
                 jsonrpc: '2.0',
                 result: {
-                  content: [{ type: 'text', text: `Failed to extract intent: ${apiResponse.status} - ${errorText}` }],
+                  content: [{ type: 'text', text: `Failed to extract intents: ${apiResponse.status} - ${errorText}` }],
                   isError: true,
                 },
                 id: id || null,
@@ -625,7 +723,7 @@ export async function startTestServer(options: {
               id: id || null,
             });
           } catch (error: any) {
-            const msg = error.name === 'TimeoutError' ? 'Protocol API timeout' : `Failed to extract intent: ${error.message}`;
+            const msg = error.name === 'TimeoutError' ? 'Protocol API timeout' : `Failed to extract intents: ${error.message}`;
             return res.json({
               jsonrpc: '2.0',
               result: {
@@ -684,6 +782,11 @@ export async function startTestServer(options: {
             });
           }
 
+          // Check if session has been marked as privy-invalid (mimic exchangePrivyToken behavior)
+          if (tokenData.jti && privyInvalidSessions.has(tokenData.jti)) {
+            return res.json(buildPrivyExpiredResponse(id, baseUrl));
+          }
+
           try {
             // Step 1: Call discover/new
             const discoverNewResponse = await fetch(`${protocolApiUrl}/discover/new`, {
@@ -698,6 +801,18 @@ export async function startTestServer(options: {
 
             if (!discoverNewResponse.ok) {
               const errorText = await discoverNewResponse.text();
+
+              // Check for expired/invalid privy token - trigger graceful reauth
+              if (isPrivyTokenExpiredError(discoverNewResponse.status, errorText)) {
+                // Mark session as privy-invalid
+                if (tokenData.jti) {
+                  privyInvalidSessions.add(tokenData.jti);
+                }
+                // Revoke all refresh tokens for this client+user
+                revokeAllRefreshTokensForUser(tokenData.clientId, tokenData.privyUserId);
+                return res.json(buildPrivyExpiredResponse(id, baseUrl));
+              }
+
               return res.json({
                 jsonrpc: '2.0',
                 result: {
@@ -746,6 +861,18 @@ export async function startTestServer(options: {
 
             if (!filterResponse.ok) {
               const errorText = await filterResponse.text();
+
+              // Check for expired/invalid privy token - trigger graceful reauth
+              if (isPrivyTokenExpiredError(filterResponse.status, errorText)) {
+                // Mark session as privy-invalid
+                if (tokenData.jti) {
+                  privyInvalidSessions.add(tokenData.jti);
+                }
+                // Revoke all refresh tokens for this client+user
+                revokeAllRefreshTokensForUser(tokenData.clientId, tokenData.privyUserId);
+                return res.json(buildPrivyExpiredResponse(id, baseUrl));
+              }
+
               return res.json({
                 jsonrpc: '2.0',
                 result: {
@@ -886,6 +1013,7 @@ export async function startTestServer(options: {
                 authorizationCodes.clear();
                 tokens.clear();
                 refreshTokens.clear();
+                privyInvalidSessions.clear();
                 res();
               });
             });

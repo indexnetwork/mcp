@@ -427,6 +427,36 @@ describe('InMemoryAccessTokenSessionRepository', () => {
     expect(await repo.findByJti('expired-session')).toBeNull();
     expect(await repo.findByJti('valid-session')).not.toBeNull();
   });
+
+  it('marks session as privy-invalid', async () => {
+    await repo.create({
+      jti: 'session-to-invalidate',
+      clientId: 'test-client',
+      privyUserId: 'did:privy:user123',
+      privyAccessToken: 'privy-access-token-xyz',
+      scopes: ['read'],
+      expiresAt: new Date(Date.now() + 3600000),
+    });
+
+    // Initially should not have privyInvalidAt
+    let found = await repo.findByJti('session-to-invalidate');
+    expect(found).not.toBeNull();
+    expect(found!.privyInvalidAt).toBeUndefined();
+
+    // Mark as invalid
+    const invalidAt = new Date();
+    await repo.markPrivyInvalid('session-to-invalidate', invalidAt);
+
+    // Should now have privyInvalidAt set
+    found = await repo.findByJti('session-to-invalidate');
+    expect(found).not.toBeNull();
+    expect(found!.privyInvalidAt).toEqual(invalidAt);
+  });
+
+  it('markPrivyInvalid does nothing for non-existent session', async () => {
+    // Should not throw
+    await repo.markPrivyInvalid('non-existent-jti', new Date());
+  });
 });
 
 describe('Repository persistence simulation', () => {

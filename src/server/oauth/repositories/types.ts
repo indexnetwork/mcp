@@ -72,6 +72,7 @@ export interface RefreshTokenRepository {
   findByToken(rawToken: string): Promise<RefreshTokenRecord | null>;
   revokeByToken(token: string): Promise<void>;
   revokeById(id: string): Promise<void>;
+  revokeAllForUser(clientId: string, privyUserId: string, when: Date): Promise<void>;
   cleanupExpired(now?: Date): Promise<void>;
 }
 
@@ -88,6 +89,7 @@ export interface AccessTokenSessionRecord {
   scopes: string[];
   expiresAt: Date;
   createdAt: Date;
+  privyInvalidAt?: Date | null; // Set when privy token is known to be invalid/expired
 }
 
 export interface AccessTokenSessionRepository {
@@ -95,6 +97,7 @@ export interface AccessTokenSessionRepository {
   findByJti(jti: string): Promise<AccessTokenSessionRecord | null>;
   deleteByJti(jti: string): Promise<void>;
   cleanupExpired(now?: Date): Promise<void>;
+  markPrivyInvalid(jti: string, when: Date): Promise<void>;
 }
 
 // ============================================================================

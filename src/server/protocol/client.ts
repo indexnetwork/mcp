@@ -6,6 +6,22 @@
 import { config } from '../config.js';
 
 // =============================================================================
+// Errors
+// =============================================================================
+
+/**
+ * Error thrown when the Protocol API returns 401/403 indicating the Privy
+ * access token is invalid or expired. This signals the caller to trigger
+ * re-authentication.
+ */
+export class PrivyTokenExpiredError extends Error {
+  constructor(message = 'Privy access token is invalid or expired') {
+    super(message);
+    this.name = 'PrivyTokenExpiredError';
+  }
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -113,7 +129,28 @@ export async function exchangePrivyToken(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error(`[exchangePrivyToken] Exchange failed: ${response.status} ${response.statusText}`);
+    console.error(`[exchangePrivyToken] Exchange failed: ${response.status} ${response.statusText} body=${errorBody}`);
+
+    // Try to detect "privy token invalid" from the exchange endpoint
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(errorBody);
+    } catch {
+      // ignore
+    }
+
+    const errorCode = parsed?.error;
+    const msg = String(parsed?.error_description || errorBody || '').toLowerCase();
+
+    if (
+      response.status === 401 &&
+      (errorCode === 'privy_token_invalid' ||
+        msg.includes('privy token invalid') ||
+        msg.includes('invalid privy token'))
+    ) {
+      throw new PrivyTokenExpiredError('Privy token is invalid or expired (exchange)');
+    }
+
     throw new Error(`Failed to exchange token: ${response.status}`);
   }
 
@@ -162,6 +199,35 @@ export async function callDiscoverNew(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
+
+    // Try to parse structured error if it's JSON
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(errorText);
+    } catch {
+      // ignore
+    }
+
+    const message =
+      (parsed && (parsed.error || parsed.message)) ||
+      errorText ||
+      `Protocol API error ${response.status}`;
+
+    // Detect expired/invalid privy token
+    if (response.status === 401 || response.status === 403) {
+      const lower = String(message).toLowerCase();
+      if (
+        lower.includes('invalid or expired access token') ||
+        lower.includes('invalid privy token') ||
+        lower.includes('expired privy token')
+      ) {
+        console.error(
+          `[callDiscoverNew] Privy token expired or invalid: status=${response.status} body=${errorText}`,
+        );
+        throw new PrivyTokenExpiredError(message);
+      }
+    }
+
     console.error(`[callDiscoverNew] Protocol API error: ${response.status} body=${errorText}`);
     throw new Error(`discover/new failed: ${response.status}`);
   }
@@ -207,7 +273,36 @@ export async function callDiscoverFilter(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
-    console.error(`[callDiscoverFilter] Protocol API error: ${response.status}`);
+
+    // Try to parse structured error if it's JSON
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(errorText);
+    } catch {
+      // ignore
+    }
+
+    const message =
+      (parsed && (parsed.error || parsed.message)) ||
+      errorText ||
+      `Protocol API error ${response.status}`;
+
+    // Detect expired/invalid privy token
+    if (response.status === 401 || response.status === 403) {
+      const lower = String(message).toLowerCase();
+      if (
+        lower.includes('invalid or expired access token') ||
+        lower.includes('invalid privy token') ||
+        lower.includes('expired privy token')
+      ) {
+        console.error(
+          `[callDiscoverFilter] Privy token expired or invalid: status=${response.status} body=${errorText}`,
+        );
+        throw new PrivyTokenExpiredError(message);
+      }
+    }
+
+    console.error(`[callDiscoverFilter] Protocol API error: ${response.status} body=${errorText}`);
     throw new Error(`discover/filter failed: ${response.status}`);
   }
 
@@ -255,7 +350,36 @@ export async function callVibecheck(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
-    console.error(`[callVibecheck] Protocol API error: ${response.status}`);
+
+    // Try to parse structured error if it's JSON
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(errorText);
+    } catch {
+      // ignore
+    }
+
+    const message =
+      (parsed && (parsed.error || parsed.message)) ||
+      errorText ||
+      `Protocol API error ${response.status}`;
+
+    // Detect expired/invalid privy token
+    if (response.status === 401 || response.status === 403) {
+      const lower = String(message).toLowerCase();
+      if (
+        lower.includes('invalid or expired access token') ||
+        lower.includes('invalid privy token') ||
+        lower.includes('expired privy token')
+      ) {
+        console.error(
+          `[callVibecheck] Privy token expired or invalid: status=${response.status} body=${errorText}`,
+        );
+        throw new PrivyTokenExpiredError(message);
+      }
+    }
+
+    console.error(`[callVibecheck] Protocol API error: ${response.status} body=${errorText}`);
     throw new Error(`vibecheck failed: ${response.status}`);
   }
 
