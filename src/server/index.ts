@@ -22,8 +22,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Log requests in development
-if (!isProduction) {
+// Log requests (can be disabled with LOG_REQUESTS=false)
+if (process.env.LOG_REQUESTS !== 'false') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
     next();
