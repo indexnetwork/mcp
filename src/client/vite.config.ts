@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { Connect } from 'vite';
+import path from 'path';
 
 // Middleware to disable Vite's host check for ngrok/tunnel support
 const disableHostCheckMiddleware: Connect.NextHandleFunction = (_req, _res, next) => {
@@ -20,6 +21,7 @@ export default defineConfig({
     },
   ],
   root: 'src/client',
+  envDir: path.resolve(__dirname, '../..'), // <- tell Vite to use repo root .env
   build: {
     outDir: '../../dist/client',
     emptyOutDir: true,
