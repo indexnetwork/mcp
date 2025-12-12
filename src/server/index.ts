@@ -5,7 +5,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import ViteExpress from 'vite-express';
 import { config, isProduction } from './config.js';
 import { wellKnownRouter } from './oauth/wellknown.js';
 import { handleDynamicClientRegistration } from './oauth/dcr.js';
@@ -120,12 +119,17 @@ if (isProduction) {
   const clientPath = path.join(process.cwd(), 'dist/client');
   app.use(express.static(clientPath));
 
+  // Serve OAuth UI for GET /authorize after validation passes (authorizeRouter calls next())
+  // This catches the request after authorizeRouter validates params and logs authorize_request
+  app.get('/authorize', (_req, res) => {
+    res.sendFile(path.join(clientPath, 'index.html'));
+  });
+
   // Catch-all for client-side routing (after all API routes)
   app.get('*', (req, res) => {
     // Don't serve index.html for API routes
     if (
       req.path.startsWith('/mcp') ||
-      req.path.startsWith('/authorize') ||
       req.path.startsWith('/token') ||
       req.path.startsWith('/.well-known') ||
       req.path.startsWith('/api')
@@ -152,7 +156,9 @@ if (isProduction) {
     `);
   });
 } else {
-  // Development: use vite-express for HMR
+  // Development: use vite-express for HMR (dynamic import to avoid requiring it in production)
+  const ViteExpress = (await import('vite-express')).default;
+
   ViteExpress.config({
     mode: 'development',
     viteConfigFile: path.join(process.cwd(), 'src/client/vite.config.ts'),
