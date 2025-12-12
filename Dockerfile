@@ -14,6 +14,12 @@ RUN bun install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Accept build arguments
+ARG VITE_PRIVY_APP_ID
+
+# Set environment variables from build arguments
+ENV VITE_PRIVY_APP_ID=$VITE_PRIVY_APP_ID
+
 # Build everything (client, widgets, server)
 RUN bun run build
 
