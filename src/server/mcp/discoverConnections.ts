@@ -10,7 +10,7 @@ import {
   callVibecheck,
   PrivyTokenExpiredError,
   type DiscoverNewIntent,
-  type VibecheckResponse,
+  type DiscoverFilterResultItem,
 } from '../protocol/client.js';
 import { config } from '../config.js';
 
@@ -137,6 +137,115 @@ async function runVibechecksWithPool(
 }
 
 // =============================================================================
+// Polling Helper: Accumulate + Stability Strategy
+// =============================================================================
+
+interface PollDiscoverFilterOptions {
+  privyToken: string;
+  intentIds: string[];
+  maxConnections: number;
+}
+
+/**
+ * Poll discover/filter with accumulate + stability strategy.
+ *
+ * Instead of stopping on first non-empty response, this:
+ * 1. Accumulates unique connections across multiple polls (by user.id)
+ * 2. Stops when: maxConnections reached OR results stabilize OR limits hit
+ *
+ * "Stable" means the connection count hasn't changed for `stableThreshold` consecutive polls.
+ */
+async function pollDiscoverFilterWithAccumulation(
+  opts: PollDiscoverFilterOptions
+): Promise<DiscoverFilterResultItem[]> {
+  const { privyToken, intentIds, maxConnections } = opts;
+  const { maxAttempts, baseDelayMs, delayStepMs, stableThreshold, maxTotalWaitMs } = config.discoverFilter;
+
+  // Accumulate connections by user.id to dedupe across polls
+  const seenByUserId = new Map<string, DiscoverFilterResultItem>();
+  let lastCount = 0;
+  let stableAttempts = 0;
+  const startTime = Date.now();
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Check total time limit
+    const elapsed = Date.now() - startTime;
+    if (elapsed >= maxTotalWaitMs) {
+      console.log(`[pollDiscoverFilter] Max total wait (${maxTotalWaitMs}ms) exceeded after ${attempt - 1} attempts`);
+      break;
+    }
+
+    // Linear backoff delay: baseDelayMs + delayStepMs * (attempt - 1)
+    const delayMs = Math.min(baseDelayMs + delayStepMs * (attempt - 1), maxTotalWaitMs - elapsed);
+    if (delayMs > 0) {
+      console.log(`[discoverConnectionsFromText] Attempt ${attempt}/${maxAttempts}: waiting ${delayMs}ms before calling discover/filter`);
+      await delay(delayMs);
+    }
+
+    try {
+      const filterResponse = await callDiscoverFilter(privyToken, {
+        intentIds,
+        excludeDiscovered: true,
+        page: 1,
+        limit: Math.max(maxConnections, 50), // Request at least 50 to catch more results
+      });
+
+      // Accumulate new connections
+      for (const result of filterResponse.results) {
+        const key = result.user.id;
+        if (!seenByUserId.has(key)) {
+          seenByUserId.set(key, result);
+          console.log(`[pollDiscoverFilter] Attempt ${attempt}: added new connection ${key} (total: ${seenByUserId.size})`);
+        }
+      }
+
+      // Early exit if we hit maxConnections
+      if (seenByUserId.size >= maxConnections) {
+        console.log(`[pollDiscoverFilter] Reached maxConnections (${maxConnections}) on attempt ${attempt}`);
+        break;
+      }
+
+      // Check stability
+      const currentCount = seenByUserId.size;
+
+      if (currentCount === 0) {
+        // No results yet - keep polling without stability check
+        console.log(`[discoverConnectionsFromText] Attempt ${attempt}: no results yet, will retry`);
+      } else {
+        // We have some results - check if stable
+        if (currentCount === lastCount) {
+          stableAttempts++;
+          console.log(`[pollDiscoverFilter] Attempt ${attempt}: count stable at ${currentCount} (stable for ${stableAttempts}/${stableThreshold})`);
+        } else {
+          // Results changed, reset stability counter
+          stableAttempts = 0;
+        }
+
+        // Stop if stable for enough consecutive polls
+        if (stableAttempts >= stableThreshold) {
+          console.log(`[pollDiscoverFilter] Results stable after ${attempt} attempts, stopping`);
+          break;
+        }
+
+        lastCount = currentCount;
+      }
+    } catch (error) {
+      // Re-throw auth errors - don't continue polling
+      if (error instanceof PrivyTokenExpiredError) {
+        throw error;
+      }
+      console.error(`[discoverConnectionsFromText] Attempt ${attempt} failed:`, error);
+      // Continue polling on transient errors
+    }
+  }
+
+  // Return accumulated connections, limited to maxConnections
+  const accumulated = Array.from(seenByUserId.values());
+  console.log(`[discoverConnectionsFromText] Found ${accumulated.length} connection(s) after polling`);
+  return accumulated.slice(0, maxConnections);
+}
+
+// =============================================================================
 // Main Orchestrator Function
 // =============================================================================
 
@@ -146,7 +255,7 @@ async function runVibechecksWithPool(
  * Flow:
  * 1. Exchange OAuth token for Privy token
  * 2. Call discover/new to extract intents
- * 3. Call discover/filter to find matching users
+ * 3. Poll discover/filter to find matching users (accumulate + stability)
  * 4. Run vibechecks for each user with bounded concurrency
  * 5. Return connections formatted for widget
  */
@@ -175,67 +284,26 @@ export async function discoverConnectionsFromText(
     return { connections: [], intents: [] };
   }
 
-  // Step C: Call discover/filter with bounded polling
+  // Step C: Poll discover/filter with accumulate + stability strategy
   // The Protocol API has eventual consistency - intents are written synchronously
-  // but indexing happens in a background queue. We poll until we get results
-  // or hit our configured limits.
-  const limit = Math.min(opts.maxConnections, 100);
+  // but indexing happens in a background queue. We poll and accumulate results
+  // until they stabilize or we hit our configured limits.
   const intentIds = intents.map(i => i.id);
 
-  const { maxAttempts, initialDelayMs, maxTotalWaitMs } = config.discoverFilter;
-  const startTime = Date.now();
-  let attempt = 0;
-  let filterResponse: Awaited<ReturnType<typeof callDiscoverFilter>> | null = null;
-
-  while (attempt < maxAttempts) {
-    const elapsed = Date.now() - startTime;
-    if (elapsed >= maxTotalWaitMs) {
-      console.log(`[discoverConnectionsFromText] Max total wait time (${maxTotalWaitMs}ms) exceeded after ${attempt} attempts`);
-      break;
-    }
-
-    // Wait before each attempt (including the first one, to give indexer time)
-    const delayMs = Math.min(initialDelayMs * (attempt + 1), maxTotalWaitMs - elapsed);
-    if (delayMs > 0) {
-      console.log(`[discoverConnectionsFromText] Attempt ${attempt + 1}/${maxAttempts}: waiting ${delayMs}ms before calling discover/filter`);
-      await delay(delayMs);
-    }
-
-    attempt++;
-
-    try {
-      filterResponse = await callDiscoverFilter(privyToken, {
-        intentIds,
-        excludeDiscovered: true,
-        page: 1,
-        limit,
-      });
-
-      // If we got results, we're done polling
-      if (filterResponse.results.length > 0) {
-        console.log(`[discoverConnectionsFromText] Found ${filterResponse.results.length} connection(s) on attempt ${attempt}`);
-        break;
-      }
-
-      console.log(`[discoverConnectionsFromText] Attempt ${attempt}: no results yet, will retry`);
-    } catch (error) {
-      // Re-throw auth errors - don't continue polling
-      if (error instanceof PrivyTokenExpiredError) {
-        throw error;
-      }
-      console.error(`[discoverConnectionsFromText] Attempt ${attempt} failed:`, error);
-      // Continue polling on transient errors
-    }
-  }
+  const filterResults = await pollDiscoverFilterWithAccumulation({
+    privyToken,
+    intentIds,
+    maxConnections: opts.maxConnections,
+  });
 
   // If no results after polling, return empty
-  if (!filterResponse || filterResponse.results.length === 0) {
+  if (filterResults.length === 0) {
     console.log('[discoverConnectionsFromText] No connections found after polling, returning with intents only');
     return { connections: [], intents };
   }
 
   // Step D: Run vibechecks with bounded concurrency
-  const vibecheckTasks: VibecheckTask[] = filterResponse.results.map(result => ({
+  const vibecheckTasks: VibecheckTask[] = filterResults.map(result => ({
     userId: result.user.id,
     intentIds,
     characterLimit: opts.characterLimit,
@@ -248,7 +316,7 @@ export async function discoverConnectionsFromText(
   );
 
   // Step E: Build ConnectionForWidget array
-  const connections: ConnectionForWidget[] = filterResponse.results.map(result => {
+  const connections: ConnectionForWidget[] = filterResults.map(result => {
     const vibecheck = vibecheckResults.get(result.user.id);
 
     return {

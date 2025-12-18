@@ -80,10 +80,13 @@ export const config = {
   },
 
   // Discover connections polling configuration
+  // Uses accumulate + stability strategy: keeps polling until results stabilize or limits hit
   discoverFilter: {
-    maxAttempts: Number(process.env.DISCOVER_FILTER_MAX_ATTEMPTS ?? '6'),
-    initialDelayMs: Number(process.env.DISCOVER_FILTER_INITIAL_DELAY_MS ?? '2000'),
-    maxTotalWaitMs: Number(process.env.DISCOVER_FILTER_MAX_TOTAL_WAIT_MS ?? '30000'),
+    maxAttempts: Number(process.env.DISCOVER_FILTER_MAX_ATTEMPTS ?? '8'),
+    baseDelayMs: Number(process.env.DISCOVER_FILTER_BASE_DELAY_MS ?? '300'),
+    delayStepMs: Number(process.env.DISCOVER_FILTER_DELAY_STEP_MS ?? '200'),
+    stableThreshold: Number(process.env.DISCOVER_FILTER_STABLE_THRESHOLD ?? '2'),
+    maxTotalWaitMs: Number(process.env.DISCOVER_FILTER_MAX_TOTAL_WAIT_MS ?? '5000'),
   },
 
   // Auth storage configuration
