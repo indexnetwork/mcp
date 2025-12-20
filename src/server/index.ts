@@ -116,11 +116,19 @@ if (isProduction) {
   const clientPath = path.join(process.cwd(), 'dist/client');
   app.use(express.static(clientPath));
 
+  // Serve OAuth UI for GET /authorize after validation passes (authorizeRouter calls next())
+  // This catches the request after authorizeRouter validates params and logs authorize_request
+  app.get('/authorize', (_req, res) => {
+    res.sendFile(path.join(clientPath, 'index.html'));
+  });
+
   // Catch-all for client-side routing (after all API routes)
   app.get('*', (req, res) => {
     // Don't serve index.html for API routes
     if (
       req.path.startsWith('/mcp') ||
+      req.path.startsWith('/token') ||
+      req.path.startsWith('/.well-known') ||
       req.path.startsWith('/api')
     ) {
       return res.status(404).json({ error: 'Not found' });

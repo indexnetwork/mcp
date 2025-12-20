@@ -17,6 +17,7 @@ let server: Server | null = null;
 let serverPort: number = 0;
 const routes = new Map<string, RouteConfig>();
 let lastDiscoverFilterBody: any | null = null;
+let discoverFilterCallCount = 0;
 
 /**
  * Start the fake Protocol API server
@@ -110,11 +111,69 @@ export function getLastDiscoverFilterBody(): any | null {
 }
 
 /**
+ * Get the number of times /discover/filter has been called
+ */
+export function getDiscoverFilterCallCount(): number {
+  return discoverFilterCallCount;
+}
+
+/**
+ * Set up incremental /discover/filter responses for testing accumulation behavior.
+ * Call 1: empty, Call 2: user-a only, Call 3+: user-a + user-b
+ */
+export function setupIncrementalDiscoverFilter(): void {
+  setRouteHandler('/discover/filter', async () => {
+    discoverFilterCallCount++;
+    const callNum = discoverFilterCallCount;
+
+    const baseResponse = {
+      pagination: { page: 1, limit: 50, hasNext: false, hasPrev: false },
+      filters: { intentIds: null, userIds: null, indexIds: null, sources: null, excludeDiscovered: true },
+    };
+
+    if (callNum === 1) {
+      // First call: empty results (indexer not ready)
+      return { ...baseResponse, results: [] };
+    } else if (callNum === 2) {
+      // Second call: partial results (user-a only)
+      return {
+        ...baseResponse,
+        results: [
+          {
+            user: { id: 'incremental-user-a', name: 'Incremental User A', email: null, avatar: null, intro: null },
+            totalStake: 100,
+            intents: [],
+          },
+        ],
+      };
+    } else {
+      // Third+ calls: full results (user-a + user-b)
+      return {
+        ...baseResponse,
+        results: [
+          {
+            user: { id: 'incremental-user-a', name: 'Incremental User A', email: null, avatar: null, intro: null },
+            totalStake: 100,
+            intents: [],
+          },
+          {
+            user: { id: 'incremental-user-b', name: 'Incremental User B', email: null, avatar: null, intro: null },
+            totalStake: 80,
+            intents: [],
+          },
+        ],
+      };
+    }
+  });
+}
+
+/**
  * Reset all route configurations
  */
 export function resetRoutes(): void {
   routes.clear();
   lastDiscoverFilterBody = null;
+  discoverFilterCallCount = 0;
 
   // Set up default successful response for /discover/new
   setRouteResponse('/discover/new', {

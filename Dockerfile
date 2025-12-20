@@ -14,6 +14,12 @@ RUN bun install --frozen-lockfile --dev
 # Copy source code
 COPY . .
 
+# Accept build arguments
+ARG VITE_PRIVY_APP_ID
+
+# Set environment variables from build arguments
+ENV VITE_PRIVY_APP_ID=$VITE_PRIVY_APP_ID
+
 # Build everything (client, widgets, server)
 RUN bun run build
 
@@ -31,8 +37,8 @@ RUN bun install --frozen-lockfile
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy any other necessary files
-COPY --from=builder /app/README.md ./README.md
+# Copy public assets (favicon, etc.)
+COPY --from=builder /app/public ./public
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -46,4 +52,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD bun run -e "fetch('http://localhost:3002/mcp/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Run the server
-CMD ["bun", "run", "dist/server/index.js"]
+CMD ["bun", "run", "start"]
