@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json bun.lockb* ./
 
 # Install all dependencies (including dev dependencies for building)
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --dev
 
 # Copy source code
 COPY . .
@@ -31,8 +31,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json bun.lockb* ./
 
-# Install production dependencies only
-RUN bun install --production --frozen-lockfile
+# Install all dependencies (vite-express is imported even though only used in dev)
+RUN bun install --frozen-lockfile
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
@@ -49,7 +49,7 @@ EXPOSE 3002
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD bun -e "fetch('http://localhost:3002/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+  CMD bun run -e "fetch('http://localhost:3002/mcp/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Run the server
 CMD ["bun", "run", "start"]

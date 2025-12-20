@@ -18,7 +18,7 @@ const privyClient = new PrivyClient(
 export const authorizeRouter = Router();
 
 /**
- * GET /authorize
+ * GET /mcp/authorize
  * Initial authorization request - validates parameters and serves UI
  * The actual UI is rendered by the React frontend
  */
@@ -113,7 +113,7 @@ authorizeRouter.get('/', async (req, res, next) => {
 });
 
 /**
- * POST /authorize/complete
+ * POST /mcp/authorize/complete
  * Programmatic endpoint for ChatGPT to complete authorization with Privy token
  * Bypasses browser UI for non-interactive flows
  */
@@ -277,7 +277,7 @@ authorizeRouter.post('/complete', async (req, res) => {
 });
 
 /**
- * POST /authorize
+ * POST /mcp/authorize
  * Receives consent from the frontend after Privy authentication
  */
 authorizeRouter.post('/', async (req, res) => {

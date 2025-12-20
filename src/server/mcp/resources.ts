@@ -136,11 +136,11 @@ function createWidgetHTML(title: string, widgetFileName: string): string {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title}</title>
-    <link rel="stylesheet" crossorigin href="${baseUrl}/widgets/mcp2.css">
+    <link rel="stylesheet" crossorigin href="${baseUrl}/mcp/widgets/mcp2.css">
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" crossorigin src="${baseUrl}/widgets/${widgetFileName}.js"></script>
+    <script type="module" crossorigin src="${baseUrl}/mcp/widgets/${widgetFileName}.js"></script>
   </body>
 </html>
   `.trim();

@@ -7,9 +7,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/authorize" element={<AuthorizePage />} />
+        <Route path="/mcp/authorize" element={<AuthorizePage />} />
         <Route path="/error" element={<ErrorPage />} />
-        <Route path="/" element={<Navigate to="/authorize" replace />} />
+        <Route path="/" element={<Navigate to="/mcp/authorize" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -49,7 +49,7 @@ function AuthorizePage() {
         throw new Error('Unable to retrieve Privy access token.');
       }
 
-      const response = await fetch('/authorize/complete', {
+      const response = await fetch('/mcp/authorize/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

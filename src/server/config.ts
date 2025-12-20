@@ -63,10 +63,10 @@ export const config = {
 
   // OAuth configuration
   oauth: {
-    authorizationEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/authorize`,
-    tokenEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/token`,
-    jwksEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/.well-known/jwks.json`,
-    registrationEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/register`,
+    authorizationEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/mcp/authorize`,
+    tokenEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/mcp/token`,
+    jwksEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/mcp/.well-known/jwks.json`,
+    registrationEndpoint: `${process.env.SERVER_BASE_URL ?? (isTest ? testDefaults.SERVER_BASE_URL : '')}/mcp/register`,
     scopesSupported: ['read', 'write', 'profile', 'privy:token:exchange'],
   },
 

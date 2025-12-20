@@ -19,7 +19,7 @@ import { getRepositories } from '../oauth/repositories/index.js';
  * Build a reauth error response for tool calls when Privy token is expired
  */
 function buildPrivyExpiredResponse() {
-  const resourceMetadata = `${config.server.baseUrl}/.well-known/oauth-protected-resource`;
+  const resourceMetadata = `${config.server.baseUrl}/mcp/.well-known/oauth-protected-resource`;
   return {
     isError: true,
     content: [

@@ -165,7 +165,7 @@ export async function startTestServer(options: {
   const scopesSupported = ['read', 'write', 'profile', 'privy:token:exchange'];
 
   // Health check
-  app.get('/health', (req, res) => {
+  app.get('/mcp/health', (req, res) => {
     res.json({ status: 'ok', environment: 'test' });
   });
 

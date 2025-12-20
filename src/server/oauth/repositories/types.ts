@@ -4,7 +4,7 @@
  * Persistence scope:
  * - OAuth clients: must persist for restart survival (DCR-generated clients)
  * - Refresh tokens: must persist for session survival across restarts
- * - Access token sessions: must persist for /token/privy/access-token to work
+ * - Access token sessions: must persist for /mcp/token/privy/access-token to work
  * - Authorization codes: short-lived (30s), can stay in-memory
  */
 
@@ -77,7 +77,7 @@ export interface RefreshTokenRepository {
 }
 
 // ============================================================================
-// Access Token Sessions (must persist for /token/privy/access-token)
+// Access Token Sessions (must persist for /mcp/token/privy/access-token)
 // ============================================================================
 
 export interface AccessTokenSessionRecord {

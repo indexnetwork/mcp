@@ -148,7 +148,7 @@ async function handleAuthorizationCodeGrant(req: Request, res: Response) {
   const accessExpiresAt = new Date(now.getTime() + ACCESS_TOKEN_TTL_MS);
   const refreshExpiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
 
-  // Store access token session for /token/privy/access-token lookups
+  // Store access token session for /mcp/token/privy/access-token lookups
   await repos.accessTokenSessions.create({
     jti: accessJti,
     clientId: client_id,
@@ -412,7 +412,7 @@ tokenRouter.post('/privy/access-token', validateToken(['privy:token:exchange']),
     // Check if privy token has been marked as invalid
     if (session.privyInvalidAt) {
       console.error('[privy/access-token] Privy token marked invalid at:', session.privyInvalidAt);
-      const resourceMetadata = `${config.server.baseUrl}/.well-known/oauth-protected-resource`;
+      const resourceMetadata = `${config.server.baseUrl}/mcp/.well-known/oauth-protected-resource`;
       return res
         .status(401)
         .setHeader(

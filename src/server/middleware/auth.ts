@@ -207,7 +207,7 @@ function buildWWWAuthenticateHeader(
 ): string {
   const parts = [
     'Bearer',
-    `resource_metadata="${config.server.baseUrl}/.well-known/oauth-protected-resource"`,
+    `resource_metadata="${config.server.baseUrl}/mcp/.well-known/oauth-protected-resource"`,
   ];
 
   if (error) {

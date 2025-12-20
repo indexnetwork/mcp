@@ -35,18 +35,15 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       // Proxy API requests to Express server
-      '/mcp': 'http://localhost:3002',
-      '/authorize': {
+      '/mcp': {
         target: 'http://localhost:3002',
         bypass: (req) => {
-          // Let GET /authorize requests go to React app
-          if (req.method === 'GET') {
+          // Let GET /mcp/authorize requests go to React app
+          if (req.method === 'GET' && req.url?.startsWith('/mcp/authorize')) {
             return req.url;
           }
         },
       },
-      '/token': 'http://localhost:3002',
-      '/.well-known': 'http://localhost:3002',
       '/api': 'http://localhost:3002',
     },
   },

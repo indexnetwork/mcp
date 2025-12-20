@@ -22,8 +22,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Log requests in development
-if (!isProduction) {
+// Log requests (can be disabled with LOG_REQUESTS=false)
+if (process.env.LOG_REQUESTS !== 'false') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
     next();
@@ -47,15 +47,6 @@ await repos.clients.create({
 });
 console.log('✓ Registered static OAuth client: chatgpt-connector');
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: config.server.nodeEnv,
-  });
-});
-
 // Root landing page (unauthenticated) so external health checks don't see 403s
 app.get('/', (req, res) => {
   res.send(`
@@ -63,14 +54,24 @@ app.get('/', (req, res) => {
       <head><title>ChatGPT OAuth Bridge</title></head>
       <body style="font-family: sans-serif;">
         <h1>ChatGPT OAuth Bridge</h1>
-        <p>The server is running. Use /authorize for OAuth and /mcp for MCP.</p>
+        <p>The server is running. Use /mcp/authorize for OAuth and /mcp for MCP.</p>
+        <p>Health check: <a href="/mcp/health">/mcp/health</a></p>
       </body>
     </html>
   `);
 });
 
+// Health check
+app.get('/mcp/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: config.server.nodeEnv,
+  });
+});
+
 // Serve widget assets (JS/CSS files)
-app.use('/widgets', express.static(path.join(process.cwd(), 'dist/widgets'), {
+app.use('/mcp/widgets', express.static(path.join(process.cwd(), 'dist/widgets'), {
   setHeaders(res) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     // Set correct MIME types
@@ -79,7 +80,7 @@ app.use('/widgets', express.static(path.join(process.cwd(), 'dist/widgets'), {
 }));
 
 // Serve favicon
-app.get(['/favicon.ico', '/favicon.png', '/favicon.svg'], (_req, res) => {
+app.get(['/mcp/favicon.ico', '/mcp/favicon.png', '/mcp/favicon.svg'], (_req, res) => {
   const faviconPath = path.join(process.cwd(), 'public/favicon.svg');
 
   // Check if favicon exists
@@ -92,23 +93,19 @@ app.get(['/favicon.ico', '/favicon.png', '/favicon.svg'], (_req, res) => {
   }
 });
 
-// OAuth2 Discovery Endpoints (/.well-known/*)
-app.use('/.well-known', wellKnownRouter);
-// Mirror discovery endpoints under /mcp/.well-known for clients that scope metadata per resource path
+// OAuth2 Discovery Endpoints
 app.use('/mcp/.well-known', wellKnownRouter);
-// Mirror discovery endpoints under /token/.well-known for clients that expect token endpoint metadata
-app.use('/token/.well-known', wellKnownRouter);
 
 // OAuth2 Dynamic Client Registration
-app.post('/register', handleDynamicClientRegistration);
+app.post('/mcp/register', handleDynamicClientRegistration);
 
 // OAuth2 Authorization Endpoint
-// GET /authorize serves the React UI (handled by vite-express)
-// POST /authorize receives consent from the frontend
-app.use('/authorize', authorizeRouter);
+// GET /mcp/authorize serves the React UI (handled by vite-express)
+// POST /mcp/authorize receives consent from the frontend
+app.use('/mcp/authorize', authorizeRouter);
 
 // OAuth2 Token Endpoint
-app.use('/token', tokenRouter);
+app.use('/mcp/token', tokenRouter);
 
 // MCP Endpoints (requires OAuth authentication)
 app.use('/mcp', mcpRouter);
@@ -150,8 +147,8 @@ if (isProduction) {
 ║                                            ║
 ║  Endpoints:                                ║
 ║  • MCP:     /mcp                           ║
-║  • OAuth:   /authorize, /token             ║
-║  • Health:  /health                        ║
+║  • OAuth:   /mcp/authorize, /mcp/token     ║
+║  • Health:  /mcp/health                    ║
 ╚════════════════════════════════════════════╝
     `);
   });
@@ -172,14 +169,14 @@ if (isProduction) {
 ║  Server:    http://localhost:${config.server.port.toString().padEnd(19)} ║
 ║                                            ║
 ║  Endpoints:                                ║
-║  • OAuth UI:  http://localhost:${config.server.port}/authorize    ║
+║  • OAuth UI:  http://localhost:${config.server.port}/mcp/authorize    ║
 ║  • MCP:       http://localhost:${config.server.port}/mcp          ║
-║  • Token:     http://localhost:${config.server.port}/token        ║
-║  • Health:    http://localhost:${config.server.port}/health       ║
+║  • Token:     http://localhost:${config.server.port}/mcp/token        ║
+║  • Health:    http://localhost:${config.server.port}/mcp/health       ║
 ║                                            ║
 ║  OAuth Discovery:                          ║
-║  • /.well-known/oauth-authorization-server ║
-║  • /.well-known/oauth-protected-resource   ║
+║  • /mcp/.well-known/oauth-authorization-server ║
+║  • /mcp/.well-known/oauth-protected-resource   ║
 ╠════════════════════════════════════════════╣
 ║  📝 Note: Build widgets first:             ║
 ║     bun run build:widgets                  ║
