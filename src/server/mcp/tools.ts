@@ -11,7 +11,7 @@ import {
 import { z } from 'zod';
 import { config } from '../config.js';
 import { discoverConnectionsFromText } from './discoverConnections.js';
-import { exchangePrivyToken, callDiscoverNew, PrivyTokenExpiredError } from '../protocol/client.js';
+import { PrivyTokenExpiredError } from '../protocol/client.js';
 import { WIDGETS } from './widgetConfig.js';
 import { getRepositories } from '../oauth/repositories/index.js';
 
@@ -39,13 +39,6 @@ function buildPrivyExpiredResponse() {
 /**
  * Zod schemas for tool input validation
  */
-const ExtractIntentSchema = z.object({
-  fullInputText: z.string().min(1, 'Input text is required'),
-  rawText: z.string().optional(),
-  conversationHistory: z.string().optional(),
-  userMemory: z.string().optional(),
-});
-
 const DiscoverConnectionsSchema = z.object({
   fullInputText: z.string().min(1, 'Input text is required'),
   maxConnections: z.number().int().min(1).max(50).optional(),
@@ -58,42 +51,6 @@ export function registerTools(server: Server) {
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
       tools: [
-        {
-          name: 'extract_intent',
-          description: 'Extracts and structures the user\'s goals, needs, or objectives from any conversation to help understand what they\'re trying to accomplish.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              fullInputText: {
-                type: 'string',
-                description: 'Full input text from the user',
-              },
-              rawText: {
-                type: 'string',
-                description: 'Raw text content from uploaded file (optional)',
-              },
-              conversationHistory: {
-                type: 'string',
-                description: 'Raw conversation history as text (optional)',
-              },
-              userMemory: {
-                type: 'string',
-                description: 'Raw user memory/context as text (optional)',
-              },
-            },
-            required: ['fullInputText'],
-          },
-          annotations: {
-            readOnlyHint: true,
-          },
-          _meta: {
-            'openai/outputTemplate': WIDGETS['intent-display'].toolMeta.outputTemplate,
-            'openai/toolInvocation/invoking': WIDGETS['intent-display'].toolMeta.invoking,
-            'openai/toolInvocation/invoked': WIDGETS['intent-display'].toolMeta.invoked,
-            'openai/widgetAccessible': WIDGETS['intent-display'].toolMeta.widgetAccessible,
-            'openai/resultCanProduceWidget': WIDGETS['intent-display'].toolMeta.resultCanProduceWidget,
-          },
-        },
         {
           name: 'discover_connections',
           description: 'Given some text, find potential connections to other Index users and synthesize how they might collaborate.',
@@ -135,9 +92,6 @@ export function registerTools(server: Server) {
     const auth = (extra as any)?.auth;
 
     switch (name) {
-      case 'extract_intent':
-        return await handleExtractIntent(args, auth);
-
       case 'discover_connections':
         return await handleDiscoverConnections(args, auth);
 
@@ -146,121 +100,6 @@ export function registerTools(server: Server) {
     }
   });
 }
-
-/**
- * Handle extract_intent tool call
- */
-async function handleExtractIntent(args: any, auth: any) {
-  // 1. Validate authentication
-  if (!auth || !auth.userId) {
-    return {
-      content: [{ type: 'text', text: 'Authentication required.' }],
-      isError: true,
-      _meta: { 'mcp/www_authenticate': 'Bearer resource_metadata="..."' },
-    };
-  }
-
-  // 2. Validate input
-  const parseResult = ExtractIntentSchema.safeParse(args);
-  if (!parseResult.success) {
-    return {
-      content: [{
-        type: 'text',
-        text: `Invalid input: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
-      }],
-      isError: true,
-    };
-  }
-
-  const { fullInputText, rawText, conversationHistory, userMemory } = parseResult.data;
-
-  try {
-    // 3. Exchange OAuth token for Privy token
-    const privyToken = await exchangePrivyToken(auth.token);
-
-    // 4. Prepare payload - truncate sections to limits
-    const truncate = (text: string | undefined, limit: number) =>
-      text ? text.slice(0, limit) : '';
-
-    const payload = [
-      truncate(fullInputText, config.intentExtraction.instructionCharLimit),
-      rawText ? `=== File Content ===\n${truncate(rawText, config.intentExtraction.sectionCharLimit)}` : '',
-      conversationHistory ? `=== Conversation ===\n${truncate(conversationHistory, config.intentExtraction.sectionCharLimit)}` : '',
-      userMemory ? `=== Context ===\n${truncate(userMemory, config.intentExtraction.sectionCharLimit)}` : '',
-    ].filter(Boolean).join('\n\n');
-
-    // 5. Call Protocol API via shared client
-    console.log('[extract_intent] Calling Protocol API via client');
-    const data = await callDiscoverNew(privyToken, { text: payload });
-
-    // 6. Return structured response for widget
-    return {
-      content: [{
-        type: 'text',
-        text: 'Showing extracted intents in the widget below.',
-      }],
-      structuredContent: {
-        intents: data.intents,
-        filesProcessed: data.filesProcessed || 0,
-        linksProcessed: data.linksProcessed || 0,
-        intentsGenerated: data.intentsGenerated,
-      },
-      _meta: {
-        'openai/toolInvocation/invoked': `Extracted ${data.intentsGenerated} intents`,
-      },
-    };
-  } catch (error) {
-    // Check for expired privy token - trigger reauth
-    if (error instanceof PrivyTokenExpiredError) {
-      console.error('[extract_intent] PrivyTokenExpiredError caught:', error.message);
-      console.log('[extract_intent] Triggering reauth flow for user:', auth?.userId);
-
-      const now = new Date();
-      const jti = auth?.decoded?.jti;
-      const clientId = auth?.decoded?.client_id;
-      const privyUserId = auth?.decoded?.sub;
-
-      // 1) Mark access-token session privy-invalid
-      if (jti) {
-        console.log('[extract_intent] Marking session invalid, jti:', jti);
-        try {
-          const repos = getRepositories();
-          await repos.accessTokenSessions.markPrivyInvalid(jti, now);
-          console.log('[extract_intent] Session marked invalid successfully');
-        } catch (markError) {
-          console.error('[extract_intent] Failed to mark session invalid:', markError);
-        }
-      }
-
-      // 2) Revoke all refresh tokens for this client + user
-      if (clientId && privyUserId) {
-        console.log('[extract_intent] Revoking refresh tokens for client:', clientId, 'user:', privyUserId);
-        try {
-          const repos = getRepositories();
-          await repos.refreshTokens.revokeAllForUser(clientId, privyUserId, now);
-          console.log('[extract_intent] Refresh tokens revoked successfully');
-        } catch (revokeError) {
-          console.error('[extract_intent] Failed to revoke refresh tokens:', revokeError);
-        }
-      }
-
-      // 3) Return reauth response
-      const reauthResponse = buildPrivyExpiredResponse();
-      console.log('[extract_intent] Returning reauth response:', JSON.stringify(reauthResponse));
-      return reauthResponse;
-    }
-
-    console.error('Error extracting intents:', error);
-    return {
-      content: [{
-        type: 'text',
-        text: `Failed to extract intents: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }],
-      isError: true,
-    };
-  }
-}
-
 
 /**
  * Handle discover_connections tool call

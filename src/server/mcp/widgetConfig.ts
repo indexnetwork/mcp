@@ -5,7 +5,7 @@
 
 import { config } from '../config.js';
 
-export type WidgetKey = 'intent-display' | 'discover-connections';
+export type WidgetKey = 'discover-connections';
 
 export interface WidgetConfig {
   key: WidgetKey;
@@ -32,29 +32,6 @@ export interface WidgetConfig {
 }
 
 export const WIDGETS: Record<WidgetKey, WidgetConfig> = {
-  'intent-display': {
-    key: 'intent-display',
-    fileName: 'intent-display',
-    uri: 'ui://widget/intent-display.html',
-    title: 'IntentDisplay Widget',
-    description: 'Displays extracted intents with archive/delete actions',
-    toolMeta: {
-      outputTemplate: 'ui://widget/intent-display.html',
-      invoking: 'Extracting intents...',
-      invoked: 'Intents extracted',
-      widgetAccessible: true,
-      resultCanProduceWidget: true,
-    },
-    resourceMeta: {
-      'openai/widgetDescription': 'This widget fully renders the extracted intents and their details. Do not repeat or re-list the intents in your follow-up message. Instead, respond with one very short sentence suggesting what the user could do next with these intents.',
-      'openai/widgetCSP': {
-        connect_domains: [],
-        resource_domains: [config.server.baseUrl],
-      },
-      'openai/widgetDomain': 'https://chatgpt.com',
-      'openai/widgetPrefersBorder': false,
-    },
-  },
   'discover-connections': {
     key: 'discover-connections',
     fileName: 'discover-connections',

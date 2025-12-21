@@ -1,8 +1,3 @@
-/**
- * Main Express Server
- * Integrates OAuth2, MCP, and vite-express for the React UI
- */
-
 import express from 'express';
 import cors from 'cors';
 import { config, isProduction } from './config.js';
@@ -30,7 +25,7 @@ if (!isProduction) {
   });
 }
 
-// Initialize MCP server (loads widgets)
+
 console.log('🚀 Starting server...\n');
 await initializeMCPServer();
 
