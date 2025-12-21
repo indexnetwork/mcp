@@ -58,13 +58,3 @@ export function getMCPServer(): Server {
   return mcpServer;
 }
 
-/**
- * Connect MCP server to stdio transport (for CLI usage)
- * This is optional and mainly for testing with the MCP Inspector
- */
-export async function connectStdioTransport() {
-  const server = getMCPServer();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.log('MCP server connected to stdio transport');
-}

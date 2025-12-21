@@ -82,46 +82,6 @@ export function validateToken(requiredScopes: string[] = []) {
 }
 
 /**
- * Optional authentication middleware
- * Attaches auth info if token is present, but doesn't require it
- */
-export function optionalAuth() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return next();
-      }
-
-      const token = authHeader.substring(7);
-
-      try {
-        const decoded = jwt.verify(token, config.jwt.publicKey, {
-          algorithms: [config.jwt.algorithm],
-          issuer: config.jwt.issuer,
-        }) as jwt.JwtPayload;
-
-        const tokenScopes = decoded.scope ? decoded.scope.split(' ') : [];
-
-        req.auth = {
-          token,
-          decoded,
-          userId: decoded.sub as string,
-          scopes: tokenScopes,
-        };
-      } catch (error) {
-        // Token is invalid, but that's okay for optional auth
-        console.log('Optional auth: invalid token');
-      }
-
-      next();
-    } catch (error) {
-      next();
-    }
-  };
-}
-
-/**
  * Send WWW-Authenticate challenge for missing/invalid token
  */
 function sendAuthChallenge(res: Response, requiredScopes: string[]) {
