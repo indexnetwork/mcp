@@ -44,42 +44,52 @@ const DiscoverConnectionsSchema = z.object({
   maxConnections: z.number().int().min(1).max(50).optional(),
 });
 
+// Track if tools are already registered to prevent duplicates
+let toolsRegistered = false;
+
 /**
  * Register all MCP tools
  */
 export function registerTools(server: Server) {
+  // Prevent duplicate registration
+  if (toolsRegistered) {
+    console.warn('[registerTools] Tools already registered, skipping duplicate registration');
+    return;
+  }
+
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
-        {
-          name: 'discover_connections',
-          description: 'Given some text, find potential connections to other Index users and synthesize how they might collaborate.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              fullInputText: {
-                type: 'string',
-                description: 'The text to analyze for finding connections',
-              },
-              maxConnections: {
-                type: 'number',
-                description: 'Maximum number of connections to return (1-50, default 10)',
-              },
-            },
-            required: ['fullInputText'],
+    // Return a single, deduplicated tool definition
+    const tool = {
+      name: 'discover_connections',
+      description: 'Given some text, find potential connections to other Index users and synthesize how they might collaborate.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          fullInputText: {
+            type: 'string',
+            description: 'The text to analyze for finding connections',
           },
-          annotations: {
-            readOnlyHint: true,
-          },
-          _meta: {
-            'openai/outputTemplate': WIDGETS['discover-connections'].toolMeta.outputTemplate,
-            'openai/toolInvocation/invoking': WIDGETS['discover-connections'].toolMeta.invoking,
-            'openai/toolInvocation/invoked': WIDGETS['discover-connections'].toolMeta.invoked,
-            'openai/widgetAccessible': WIDGETS['discover-connections'].toolMeta.widgetAccessible,
-            'openai/resultCanProduceWidget': WIDGETS['discover-connections'].toolMeta.resultCanProduceWidget,
+          maxConnections: {
+            type: 'number',
+            description: 'Maximum number of connections to return (1-50, default 10)',
           },
         },
-      ],
+        required: ['fullInputText'],
+      },
+      annotations: {
+        readOnlyHint: true,
+      },
+      _meta: {
+        'openai/outputTemplate': WIDGETS['discover-connections'].toolMeta.outputTemplate,
+        // Only set 'invoking' in tool definition - 'invoked' is set dynamically in response
+        'openai/toolInvocation/invoking': WIDGETS['discover-connections'].toolMeta.invoking,
+        'openai/widgetAccessible': WIDGETS['discover-connections'].toolMeta.widgetAccessible,
+        'openai/resultCanProduceWidget': WIDGETS['discover-connections'].toolMeta.resultCanProduceWidget,
+      },
+    };
+
+    return {
+      tools: [tool],
     };
   });
 
@@ -99,6 +109,8 @@ export function registerTools(server: Server) {
         throw new Error(`Unknown tool: ${name}`);
     }
   });
+
+  toolsRegistered = true;
 }
 
 /**
