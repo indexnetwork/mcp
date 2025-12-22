@@ -1,10 +1,13 @@
 import '../main.css';
+import { useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useOpenAi } from '../hooks/useOpenAi';
+import { useWidgetState } from '../hooks/useWidgetState';
 import { EmptyMessage } from '@openai/apps-sdk-ui/components/EmptyMessage';
 import { Members } from '@openai/apps-sdk-ui/components/Icon';
 import { LoadingIndicator } from '@openai/apps-sdk-ui/components/Indicator';
 import { ConnectionCard } from './ConnectionCard';
+import type { ConnectionAction, ConnectionStatus } from './ConnectionActions';
 
 // Types
 interface Connection {
@@ -23,9 +26,32 @@ interface DiscoverConnectionsData {
   connectionsFound?: number;
 }
 
+// Map action to resulting status
+function getStatusAfterAction(action: ConnectionAction): ConnectionStatus {
+  switch (action) {
+    case 'REQUEST':
+      return 'pending_sent';
+    case 'SKIP':
+      return 'skipped';
+    case 'ACCEPT':
+      return 'connected';
+    case 'DECLINE':
+      return 'declined';
+    case 'CANCEL':
+      return 'none';
+    default:
+      return 'none';
+  }
+}
+
 // Main Widget Component
 function DiscoverConnectionsWidget() {
-  const toolOutput = useOpenAi();
+  const { callTool, ...toolOutput } = useOpenAi();
+
+  // Persist connection statuses across conversation turns
+  const [connectionStatuses, setConnectionStatuses] = useWidgetState<Record<string, ConnectionStatus>>(
+    () => ({})
+  );
 
   // Try multiple possible data sources (same pattern as IntentDisplay)
   const data = (
@@ -35,6 +61,25 @@ function DiscoverConnectionsWidget() {
   ) as DiscoverConnectionsData | null;
 
   const connections = data?.connections ?? [];
+
+  // Handle connection action
+  const handleConnectionAction = useCallback(async (action: ConnectionAction, userId: string) => {
+    console.log('[DiscoverConnectionsWidget] Action:', action, 'for user:', userId);
+
+    try {
+      // Call the MCP tool to persist the action
+      await callTool('connection_action', { action, userId });
+
+      // Update local state on success
+      setConnectionStatuses((prev) => ({
+        ...prev,
+        [userId]: getStatusAfterAction(action),
+      }));
+    } catch (error) {
+      console.error('[DiscoverConnectionsWidget] Action failed:', error);
+      throw error;
+    }
+  }, [callTool, setConnectionStatuses]);
 
   console.log('[DiscoverConnectionsWidget] Rendering with', connections.length, 'connections');
 
@@ -73,6 +118,8 @@ function DiscoverConnectionsWidget() {
           user={conn.user}
           mutualIntentCount={conn.mutualIntentCount}
           synthesis={conn.synthesis}
+          connectionStatus={connectionStatuses[conn.user.id] ?? 'none'}
+          onAction={handleConnectionAction}
         />
       ))}
     </div>

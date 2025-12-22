@@ -104,6 +104,19 @@ export interface VibecheckResponse {
   contextUserId: string;
 }
 
+export type ConnectionAction = 'REQUEST' | 'SKIP' | 'ACCEPT' | 'DECLINE' | 'CANCEL';
+
+export interface ConnectionActionParams {
+  targetUserId: string;
+  action: ConnectionAction;
+}
+
+export interface ConnectionActionResponse {
+  success: boolean;
+  action: ConnectionAction;
+  targetUserId: string;
+}
+
 // =============================================================================
 // Token Exchange
 // =============================================================================
@@ -386,4 +399,73 @@ export async function callVibecheck(
   const data = await response.json() as VibecheckResponse;
   console.log(`[callVibecheck] Generated synthesis for user ${params.targetUserId}: ${data.synthesis.length} chars`);
   return data;
+}
+
+/**
+ * Call POST /connections/actions to perform a connection action
+ */
+export async function callConnectionAction(
+  privyToken: string,
+  params: ConnectionActionParams,
+  signal?: AbortSignal
+): Promise<ConnectionActionResponse> {
+  const apiUrl = `${config.intentExtraction.protocolApiUrl}/connections/actions`;
+  console.log('[callConnectionAction] Calling Protocol API:', apiUrl, 'action:', params.action);
+
+  const body = {
+    targetUserId: params.targetUserId,
+    action: params.action,
+  };
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${privyToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: signal ?? AbortSignal.timeout(config.intentExtraction.protocolApiTimeoutMs),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(errorText);
+    } catch {
+      // ignore
+    }
+
+    const message =
+      (parsed && (parsed.error || parsed.message)) ||
+      errorText ||
+      `Protocol API error ${response.status}`;
+
+    // Detect expired/invalid privy token
+    if (response.status === 401 || response.status === 403) {
+      const lower = String(message).toLowerCase();
+      if (
+        lower.includes('invalid or expired access token') ||
+        lower.includes('invalid privy token') ||
+        lower.includes('expired privy token')
+      ) {
+        console.error(
+          `[callConnectionAction] Privy token expired or invalid: status=${response.status} body=${errorText}`,
+        );
+        throw new PrivyTokenExpiredError(message);
+      }
+    }
+
+    console.error(`[callConnectionAction] Protocol API error: ${response.status} body=${errorText}`);
+    throw new Error(`connection action failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log(`[callConnectionAction] Action ${params.action} completed for user ${params.targetUserId}`);
+  return {
+    success: true,
+    action: params.action,
+    targetUserId: params.targetUserId,
+  };
 }

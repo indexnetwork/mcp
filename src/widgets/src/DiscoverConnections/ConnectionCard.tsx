@@ -1,7 +1,6 @@
 import { Avatar } from '@openai/apps-sdk-ui/components/Avatar';
-import { Badge } from '@openai/apps-sdk-ui/components/Badge';
-import { Members } from '@openai/apps-sdk-ui/components/Icon';
 import { SynthesisText } from './SynthesisText';
+import { ConnectionActions, type ConnectionAction, type ConnectionStatus } from './ConnectionActions';
 
 interface ConnectionCardProps {
   user: {
@@ -11,14 +10,16 @@ interface ConnectionCardProps {
   };
   mutualIntentCount: number;
   synthesis: string;
+  connectionStatus: ConnectionStatus;
+  onAction: (action: ConnectionAction, userId: string) => Promise<void>;
 }
 
-export function ConnectionCard({ user, mutualIntentCount, synthesis }: ConnectionCardProps) {
+export function ConnectionCard({ user, mutualIntentCount, synthesis, connectionStatus, onAction }: ConnectionCardProps) {
   const avatarUrl = user.avatar ?? '';
 
   return (
     <div className="w-full rounded-2xl border border-default bg-surface p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {avatarUrl ? (
             <Avatar imageUrl={avatarUrl} name={user.name} size={40} />
@@ -34,12 +35,11 @@ export function ConnectionCard({ user, mutualIntentCount, synthesis }: Connectio
             </p>
           </div>
         </div>
-        {mutualIntentCount > 0 && (
-          <Badge variant="soft" color="secondary" size="sm">
-            <Members className="size-3" />
-            <span className="ml-1">{mutualIntentCount}</span>
-          </Badge>
-        )}
+        <ConnectionActions
+          userId={user.id}
+          connectionStatus={connectionStatus}
+          onAction={onAction}
+        />
       </div>
 
       {synthesis && (

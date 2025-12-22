@@ -11,7 +11,12 @@ import {
 import { z } from 'zod';
 import { config } from '../config.js';
 import { discoverConnectionsFromText } from './discoverConnections.js';
-import { PrivyTokenExpiredError } from '../protocol/client.js';
+import {
+  PrivyTokenExpiredError,
+  exchangePrivyToken,
+  callConnectionAction,
+  type ConnectionAction,
+} from '../protocol/client.js';
 import { WIDGETS } from './widgetConfig.js';
 import { getRepositories } from '../oauth/repositories/index.js';
 
@@ -44,6 +49,11 @@ const DiscoverConnectionsSchema = z.object({
   maxConnections: z.number().int().min(1).max(50).optional(),
 });
 
+const ConnectionActionSchema = z.object({
+  action: z.enum(['REQUEST', 'SKIP', 'ACCEPT', 'DECLINE', 'CANCEL']),
+  userId: z.string().min(1, 'User ID is required'),
+});
+
 // Track if tools are already registered to prevent duplicates
 let toolsRegistered = false;
 
@@ -58,8 +68,7 @@ export function registerTools(server: Server) {
   }
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    // Return a single, deduplicated tool definition
-    const tool = {
+    const discoverConnectionsTool = {
       name: 'discover_connections',
       description: 'Given some text, find potential connections to other Index users and synthesize how they might collaborate.',
       inputSchema: {
@@ -81,15 +90,37 @@ export function registerTools(server: Server) {
       },
       _meta: {
         'openai/outputTemplate': WIDGETS['discover-connections'].toolMeta.outputTemplate,
-        // Only set 'invoking' in tool definition - 'invoked' is set dynamically in response
         'openai/toolInvocation/invoking': WIDGETS['discover-connections'].toolMeta.invoking,
         'openai/widgetAccessible': WIDGETS['discover-connections'].toolMeta.widgetAccessible,
         'openai/resultCanProduceWidget': WIDGETS['discover-connections'].toolMeta.resultCanProduceWidget,
       },
     };
 
+    const connectionActionTool = {
+      name: 'connection_action',
+      description: 'Perform a connection action (request, skip, accept, decline, cancel) on a user. Called by widgets to persist connection state.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['REQUEST', 'SKIP', 'ACCEPT', 'DECLINE', 'CANCEL'],
+            description: 'The action to perform',
+          },
+          userId: {
+            type: 'string',
+            description: 'The target user ID',
+          },
+        },
+        required: ['action', 'userId'],
+      },
+      annotations: {
+        readOnlyHint: false,
+      },
+    };
+
     return {
-      tools: [tool],
+      tools: [discoverConnectionsTool, connectionActionTool],
     };
   });
 
@@ -104,6 +135,9 @@ export function registerTools(server: Server) {
     switch (name) {
       case 'discover_connections':
         return await handleDiscoverConnections(args, auth);
+
+      case 'connection_action':
+        return await handleConnectionAction(args, auth);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -259,6 +293,72 @@ async function handleDiscoverConnections(args: any, auth: any) {
       content: [{
         type: 'text',
         text: `Failed to discover connections: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * Handle connection_action tool call
+ */
+async function handleConnectionAction(args: any, auth: any) {
+  // 1. Validate authentication
+  if (!auth || !auth.userId) {
+    return {
+      content: [{ type: 'text', text: 'Authentication required.' }],
+      isError: true,
+    };
+  }
+
+  // 2. Validate input
+  const parseResult = ConnectionActionSchema.safeParse(args);
+  if (!parseResult.success) {
+    return {
+      content: [{
+        type: 'text',
+        text: `Invalid input: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
+      }],
+      isError: true,
+    };
+  }
+
+  const { action, userId } = parseResult.data;
+
+  try {
+    // 3. Exchange OAuth token for Privy token
+    const privyToken = await exchangePrivyToken(auth.token);
+
+    // 4. Call Protocol API
+    const result = await callConnectionAction(privyToken, {
+      targetUserId: userId,
+      action: action as ConnectionAction,
+    });
+
+    // 5. Return success response
+    return {
+      content: [{
+        type: 'text',
+        text: `Connection action ${action} completed successfully.`,
+      }],
+      structuredContent: {
+        success: true,
+        action,
+        userId,
+      },
+    };
+  } catch (error) {
+    // Check for expired privy token - trigger reauth
+    if (error instanceof PrivyTokenExpiredError) {
+      console.error('[connection_action] PrivyTokenExpiredError caught:', error.message);
+      return buildPrivyExpiredResponse();
+    }
+
+    console.error('Error performing connection action:', error);
+    return {
+      content: [{
+        type: 'text',
+        text: `Failed to perform action: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }],
       isError: true,
     };

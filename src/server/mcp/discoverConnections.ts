@@ -15,14 +15,6 @@ import {
 import { config } from '../config.js';
 
 // =============================================================================
-// Constants
-// =============================================================================
-
-const VIBECHECK_DEFAULT_CONCURRENCY = 2;
-const VIBECHECK_MAX_CONCURRENCY = 5;
-const VIBECHECK_THROTTLE_MS = 75;
-
-// =============================================================================
 // Types
 // =============================================================================
 
@@ -49,91 +41,11 @@ export interface DiscoverConnectionsFromTextOptions {
 }
 
 // =============================================================================
-// Helper: Worker Pool for Vibecheck Calls
+// Helper: Delay for Polling
 // =============================================================================
 
 async function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-interface VibecheckTask {
-  userId: string;
-  intentIds: string[];
-  indexIds?: string[];
-  characterLimit?: number;
-}
-
-interface VibecheckResult {
-  userId: string;
-  synthesis: string;
-}
-
-/**
- * Run vibecheck tasks with bounded concurrency and throttling
- */
-async function runVibechecksWithPool(
-  privyToken: string,
-  tasks: VibecheckTask[],
-  concurrency: number
-): Promise<Map<string, VibecheckResult>> {
-  const results = new Map<string, VibecheckResult>();
-
-  if (tasks.length === 0) {
-    return results;
-  }
-
-  const effectiveConcurrency = Math.min(
-    concurrency,
-    VIBECHECK_MAX_CONCURRENCY,
-    tasks.length
-  );
-
-  let nextIndex = 0;
-
-  const worker = async () => {
-    while (true) {
-      const taskIndex = nextIndex++;
-      if (taskIndex >= tasks.length) {
-        break;
-      }
-
-      const task = tasks[taskIndex];
-
-      try {
-        const response = await callVibecheck(privyToken, {
-          targetUserId: task.userId,
-          intentIds: task.intentIds,
-          indexIds: task.indexIds,
-          characterLimit: task.characterLimit,
-        });
-
-        results.set(task.userId, {
-          userId: task.userId,
-          synthesis: response.synthesis,
-        });
-      } catch (error) {
-        // Re-throw auth errors - don't swallow them
-        if (error instanceof PrivyTokenExpiredError) {
-          throw error;
-        }
-        // Partial failure tolerance: store empty synthesis on other errors
-        console.error(`[runVibechecksWithPool] Vibecheck failed for user ${task.userId}:`, error);
-        results.set(task.userId, {
-          userId: task.userId,
-          synthesis: '',
-        });
-      }
-
-      // Throttle between calls
-      await delay(VIBECHECK_THROTTLE_MS);
-    }
-  };
-
-  // Start workers
-  const workers = Array.from({ length: effectiveConcurrency }, () => worker());
-  await Promise.all(workers);
-
-  return results;
 }
 
 // =============================================================================
@@ -302,33 +214,36 @@ export async function discoverConnectionsFromText(
     return { connections: [], intents };
   }
 
-  // Step D: Run vibechecks with bounded concurrency
-  const vibecheckTasks: VibecheckTask[] = filterResults.map(result => ({
-    userId: result.user.id,
-    intentIds,
-    characterLimit: opts.characterLimit,
-  }));
-
-  const vibecheckResults = await runVibechecksWithPool(
-    privyToken,
-    vibecheckTasks,
-    VIBECHECK_DEFAULT_CONCURRENCY
+  // Step D: Run vibechecks in parallel
+  const vibecheckResults = await Promise.all(
+    filterResults.map(async result => {
+      try {
+        const response = await callVibecheck(privyToken, {
+          targetUserId: result.user.id,
+          intentIds,
+          characterLimit: opts.characterLimit,
+        });
+        return { userId: result.user.id, synthesis: response.synthesis };
+      } catch (error) {
+        if (error instanceof PrivyTokenExpiredError) throw error;
+        console.error(`[discoverConnectionsFromText] Vibecheck failed for user ${result.user.id}:`, error);
+        return { userId: result.user.id, synthesis: '' };
+      }
+    })
   );
 
-  // Step E: Build ConnectionForWidget array
-  const connections: ConnectionForWidget[] = filterResults.map(result => {
-    const vibecheck = vibecheckResults.get(result.user.id);
+  const synthesisMap = new Map(vibecheckResults.map(r => [r.userId, r.synthesis]));
 
-    return {
-      user: {
-        id: result.user.id,
-        name: result.user.name,
-        avatar: result.user.avatar,
-      },
-      mutualIntentCount: result.intents.length,
-      synthesis: vibecheck?.synthesis ?? '',
-    };
-  });
+  // Step E: Build ConnectionForWidget array
+  const connections: ConnectionForWidget[] = filterResults.map(result => ({
+    user: {
+      id: result.user.id,
+      name: result.user.name,
+      avatar: result.user.avatar,
+    },
+    mutualIntentCount: result.intents.length,
+    synthesis: synthesisMap.get(result.user.id) ?? '',
+  }));
 
   // Step F: Return result
   console.log(`[discoverConnectionsFromText] Returning ${connections.length} connection(s)`);
